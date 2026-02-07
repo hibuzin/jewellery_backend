@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
+
 const app = express();
 
 
@@ -12,6 +14,10 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://arshath:tokyodel9600@c
 mongoose.connect(MONGO_URI)
     .then(() => console.log('mongoDB Connected'))
     .catch(err => console.error('mongoDB connection error:', err));
+
+app.get('/', (req, res) => {
+    res.send('API running');
+});
 
 
 const PORT = process.env.PORT || 5000;
