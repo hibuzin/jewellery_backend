@@ -37,15 +37,15 @@ const productSchema = new mongoose.Schema(
         },
 
         image: {
-                public_id: { type: String },
-                url: { type: String ,required: true},
-            },
-
-            isAvailable: {
-                type: Boolean,
-                default: true
-            }
+            public_id: { type: String },
+            url: { type: String },
         },
+
+        isAvailable: {
+            type: Boolean,
+            default: true
+        }
+    },
     { timestamps: true }
 );
 
