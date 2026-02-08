@@ -111,11 +111,13 @@ router.put('/:orderId/status', auth, async (req, res) => {
     const { status } = req.body;
 
     const allowedStatus = [
-      'pending',
+      'placed',
       'confirmed',
       'shipped',
       'delivered',
-      'cancelled'
+      'cancelled',
+      'return requested',
+      'return accepted',
     ];
 
     if (!status || !allowedStatus.includes(status)) {
@@ -168,7 +170,7 @@ router.post('/:orderId/return', auth, async (req, res) => {
     order.return = {
       isRequested: true,
       reason,
-      status: 'requested',
+      status: 'return requested',
       requestedAt: new Date()
     };
 
