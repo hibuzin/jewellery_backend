@@ -7,12 +7,13 @@ const streamifier = require('streamifier');
 
 const router = express.Router();
 
+// CREATE product
 router.post('/', auth, upload.single('image'), async (req, res) => {
     try {
-        const { title, category, subcategory, price, gram } = req.body;
+        const { title, category, subcategory, price, gram, description, quantity } = req.body;
 
         // validation
-        if (!title || !category || !subcategory || !price || !gram) {
+        if (!title || !category || !subcategory || !price || !gram || !description || !quantity) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
@@ -20,17 +21,13 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             return res.status(400).json({ message: 'Image is required' });
         }
 
-        // upload to cloudinary
+        // upload to Cloudinary
         const uploadToCloudinary = () =>
             new Promise((resolve, reject) => {
                 const stream = cloudinary.uploader.upload_stream(
                     { folder: 'jewellery' },
-                    (error, result) => {
-                        if (result) resolve(result);
-                        else reject(error);
-                    }
+                    (error, result) => (result ? resolve(result) : reject(error))
                 );
-
                 streamifier.createReadStream(req.file.buffer).pipe(stream);
             });
 
@@ -42,6 +39,8 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             subcategory,
             price,
             gram,
+            description,
+            quantity,
             image: {
                 public_id: result.public_id,
                 url: result.secure_url
@@ -59,12 +58,12 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     }
 });
 
-
-
+// GET all products
 router.get('/', async (req, res) => {
     try {
         const products = await Product.find()
             .populate('category', 'name')
+            .populate('subcategory', 'name')
             .sort({ createdAt: -1 });
 
         res.json(products);
@@ -73,14 +72,14 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET single product
 router.get('/:id', async (req, res) => {
     try {
         const product = await Product.findById(req.params.id)
-            .populate('category', 'name');
+            .populate('category', 'name')
+            .populate('subcategory', 'name');
 
-        if (!product) {
-            return res.status(404).json({ message: 'Jewellery not found' });
-        }
+        if (!product) return res.status(404).json({ message: 'Jewellery not found' });
 
         res.json(product);
     } catch (err) {
@@ -88,47 +87,42 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// UPDATE product
 router.put('/:id', auth, upload.single('image'), async (req, res) => {
     try {
-        let data = req.body;
+        const data = { ...req.body };
 
         if (req.file) {
             const result = await cloudinary.uploader.upload(
                 `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
                 { folder: 'jewellery' }
             );
-
             data.image = {
                 public_id: result.public_id,
                 url: result.secure_url
             };
         }
 
-        const product = await Product.findByIdAndUpdate(
-            req.params.id,
-            data,
-            { new: true }
-        );
-
+        const product = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
         res.json(product);
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Update failed' });
     }
 });
 
+// DELETE product
 router.delete('/:id', auth, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
-
-        if (!product) {
-            return res.status(404).json({ message: 'Not found' });
-        }
+        if (!product) return res.status(404).json({ message: 'Not found' });
 
         await cloudinary.uploader.destroy(product.image.public_id);
         await product.deleteOne();
 
         res.json({ message: 'Jewellery deleted' });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ message: 'Delete failed' });
     }
 });

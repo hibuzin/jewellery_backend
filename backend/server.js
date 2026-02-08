@@ -16,8 +16,6 @@ const cartRoutes = require('./routes/cart');
 
 
 
-
-
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/categories', categoryRoutes);
