@@ -6,7 +6,6 @@ const cloudinary = require('../config/cloudinary');
 const streamifier = require('streamifier');
 const Category = require('../models/category');
 
-const allowedCategories = ['gold', 'diamond', 'Silver'];
 
 console.log('category.js loaded');
 

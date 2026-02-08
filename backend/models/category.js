@@ -7,7 +7,9 @@ const categorySchema = new mongoose.Schema({
     unique: true,
   },
   image: {
-     type: String, required: true }
+    public_id: { type: String },
+    url: { type: String },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Category', categorySchema);

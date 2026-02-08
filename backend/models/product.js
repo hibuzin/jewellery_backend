@@ -13,7 +13,7 @@ const productSchema = new mongoose.Schema(
             required: true
         },
 
-       
+
 
         category: {
             type: mongoose.Schema.Types.ObjectId,
@@ -27,7 +27,10 @@ const productSchema = new mongoose.Schema(
         },
 
 
-        image: {type: String,required: true },
+        image: {
+            public_id: { type: String },
+            url: { type: String },
+        },
 
         isAvailable: {
             type: Boolean,

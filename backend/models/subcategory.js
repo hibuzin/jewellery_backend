@@ -11,7 +11,10 @@ const subcategorySchema = new mongoose.Schema({
     required: true,
   },
   
- image: { type: String, required: true }
+  image: {
+    public_id: { type: String },
+    url: { type: String },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Subcategory', subcategorySchema);
