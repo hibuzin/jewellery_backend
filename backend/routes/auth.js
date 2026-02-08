@@ -67,21 +67,21 @@ router.post('/login', async (req, res) => {
 
         // 1. check user
         const user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({ message: 'Invalid email or password' });
-        }
+        if (!user) return res.status(400).json({ message: 'Invalid email or password' });
 
-        // 2. compare password
+        // Check if password exists
+        if (!user.password) return res.status(400).json({ message: 'User has no password set. Please use OTP login.' });
+
         const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid email or password' });
-        }
+        if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
 
+
+      
         // 3. generate token
         const token = jwt.sign(
             { userId: user._id },
             process.env.JWT_SECRET,
-            { expiresIn: '7d' }
+            { expiresIn: '1d' }
         );
 
         res.json({
