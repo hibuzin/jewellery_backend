@@ -111,7 +111,7 @@ router.put('/:orderId/status', auth, async (req, res) => {
     const { status } = req.body;
 
     const allowedStatus = [
-      'placed',
+      'pending',
       'confirmed',
       'shipped',
       'delivered',

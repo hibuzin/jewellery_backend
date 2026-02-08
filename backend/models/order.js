@@ -38,8 +38,8 @@ const orderSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled', 'return requested', 'return accepted', 'returned'],
-            default: 'placed'
+            enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'return requested', 'return accepted', 'returned'],
+            default: 'pending'
         }
     },
     { timestamps: true }
