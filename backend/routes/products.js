@@ -85,7 +85,40 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// UPDATE product
+// GET SIMILAR PRODUCTS
+router.get('/:id/similar', async (req, res) => {
+  try {
+    const productId = req.params.id;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+
+    const similarProducts = await Product.find({
+      _id: { $ne: productId }, 
+      $or: [
+        { category: product.category },
+        { subcategory: product.subcategory }
+      ],
+      isAvailable: true
+    })
+      .limit(6)
+      .sort({ createdAt: -1 });
+
+    res.json({
+      message: 'Similar products loaded',
+      products: similarProducts
+    });
+
+  } catch (err) {
+    console.error('SIMILAR PRODUCT ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
+
 router.put('/:id', auth, upload.single('image'), async (req, res) => {
     try {
         const data = { ...req.body };

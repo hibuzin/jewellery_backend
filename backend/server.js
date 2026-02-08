@@ -19,6 +19,7 @@ const addressRoutes = require('./routes/address');
 
 
 
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -27,6 +28,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/address', addressRoutes);
+
 
 
 

@@ -142,6 +142,50 @@ router.put('/:orderId/status', auth, async (req, res) => {
   }
 });
 
+router.post('/:orderId/return', auth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    const order = await Order.findOne({
+      _id: req.params.orderId,
+      user: req.userId
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.status !== 'delivered') {
+      return res.status(400).json({
+        message: 'Return allowed only after delivery'
+      });
+    }
+
+    if (order.return?.isRequested) {
+      return res.status(400).json({ message: 'Return already requested' });
+    }
+
+    order.return = {
+      isRequested: true,
+      reason,
+      status: 'requested',
+      requestedAt: new Date()
+    };
+
+    await order.save();
+
+    res.json({
+      message: 'Return request submitted',
+      order
+    });
+
+  } catch (err) {
+    console.error('RETURN REQUEST ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 
 module.exports = router;
 
