@@ -4,7 +4,6 @@ const subcategorySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true,
   },
   category: {
     type: mongoose.Schema.Types.ObjectId,
@@ -12,10 +11,7 @@ const subcategorySchema = new mongoose.Schema({
     required: true,
   },
   
-  image: {
-    public_id: { type: String },
-    url: { type: String },
-  },
+ image: { type: String, required: true }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Subcategory', subcategorySchema);

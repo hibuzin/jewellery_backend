@@ -20,22 +20,14 @@ const productSchema = new mongoose.Schema(
             ref: 'Category',
             required: true
         },
+        subcategory: { type: mongoose.Schema.Types.ObjectId, ref: 'SubCategory', required: true },
         gram: {
             type: Number,
             required: true
         },
 
 
-        image: {
-            public_id: {
-                type: String,
-                required: true
-            },
-            url: {
-                type: String,
-                required: true
-            }
-        },
+        image: {type: String,required: true },
 
         isAvailable: {
             type: Boolean,
