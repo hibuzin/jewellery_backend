@@ -27,5 +27,13 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hibuzin/jewellery.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hibuzin/jewellery/issues"
+  },
+  "homepage": "https://github.com/hibuzin/jewellery#readme"
 }

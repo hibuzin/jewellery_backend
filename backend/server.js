@@ -5,9 +5,19 @@ const mongoose = require('mongoose');
 const app = express();
 app.use(express.json());
 
+const authRoutes = require('./routes/auth');
+const productsRoutes = require('./routes/products');
+const categoryRoutes = require('./routes/category');
+const subcategoryRoutes = require('./routes/subcategory');
 
 
-app.use('/api/auth', require('./routes/auth'));
+
+
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productsRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/subcategories', subcategoryRoutes);
+
 
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://arshath:tokyodel9600@cluster0.v87mhyy.mongodb.net/';

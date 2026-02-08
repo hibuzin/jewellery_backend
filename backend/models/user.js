@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
     unique: true
   },
   password: String,
+  otp: String,
+  otpExpires: Date,
 
   wishlist: [{
     type: mongoose.Schema.Types.ObjectId,
