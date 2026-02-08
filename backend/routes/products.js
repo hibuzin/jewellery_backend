@@ -17,7 +17,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-       
+
 
         // upload to Cloudinary
         const uploadToCloudinary = () =>

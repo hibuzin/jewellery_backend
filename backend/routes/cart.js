@@ -21,6 +21,7 @@ router.post('/add', auth, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
     if (!productId) return res.status(400).json({ message: 'Product ID is required' });
+    
 
     const userId = req.userId; // from auth middleware
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
