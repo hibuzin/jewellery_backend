@@ -11,8 +11,9 @@ const authRoutes = require('./routes/auth');
 const productsRoutes = require('./routes/products');
 const categoryRoutes = require('./routes/category');
 const subcategoryRoutes = require('./routes/subcategory');
-const wishlistRoutes = require('./routes/cart');
+const wishlistRoutes = require('./routes/wishlist');
 const cartRoutes = require('./routes/cart');
+
 
 
 
@@ -21,6 +22,7 @@ app.use('/api/products', productsRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 
 
