@@ -7,19 +7,16 @@ const streamifier = require('streamifier');
 const Category = require('../models/category');
 
 
-console.log('category.js loaded');
-
-// CREATE category
 router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
     const { name } = req.body;
 
-    if (!name || !allowedCategories.includes(name)) {
-      return res.status(400).json({ error: 'Invalid category name. Must be gold, diamond, or silver.' });
+    if (!name) {
+      return res.status(400).json({ error: 'Category name is required.' });
     }
 
     if (!req.file) {
-      return res.status(400).json({ error: 'Image is required' });
+      return res.status(400).json({ error: 'Image is required.' });
     }
 
     // Upload image to Cloudinary
@@ -27,10 +24,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: 'jewellery/categories' },
-          (error, result) => {
-            if (result) resolve(result);
-            else reject(error);
-          }
+          (error, result) => (result ? resolve(result) : reject(error))
         );
         streamifier.createReadStream(req.file.buffer).pipe(stream);
       });
@@ -84,10 +78,6 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     const { name } = req.body;
-    if (name && !allowedCategories.includes(name)) {
-      return res.status(400).json({ error: 'Invalid category name. Must be Gold, Diamond, or Silver.' });
-    }
-
     if (name) category.name = name;
 
     if (req.file) {
@@ -95,10 +85,7 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
         new Promise((resolve, reject) => {
           const stream = cloudinary.uploader.upload_stream(
             { folder: 'jewellery/categories' },
-            (error, result) => {
-              if (result) resolve(result);
-              else reject(error);
-            }
+            (error, result) => (result ? resolve(result) : reject(error))
           );
           streamifier.createReadStream(req.file.buffer).pipe(stream);
         });
