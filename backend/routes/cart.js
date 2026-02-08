@@ -7,7 +7,7 @@ const Product = require('../models/product');
 // GET user's cart
 router.get('/', auth, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.userId }).populate('products.product');
+    let cart = await Cart.findOne({ user: req.userId }).populate('items.product');
     if (!cart) cart = await Cart.create({ user: req.userId, products: [] });
     res.json({ cart });
   } catch (err) {

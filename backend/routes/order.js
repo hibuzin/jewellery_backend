@@ -130,6 +130,17 @@ router.put('/:orderId/status', auth, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+     if (status === 'return accepted' && order.status !== 'return accepted') {
+      for (const item of order.items) {
+        const product = await Product.findById(item.product._id);
+
+        if (product) {
+          product.quantity += item.quantity; // ✅ add back stock
+          await product.save();
+        }
+      }
+    }
+
     order.status = status;
     await order.save();
 
