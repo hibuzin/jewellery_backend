@@ -85,61 +85,36 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// GET products by subcategory ID
-router.get('/subcategory/:subId', async (req, res) => {
-    try {
-        const { subId } = req.params;
-
-        // Find all products where the subcategory field matches the ID
-        const products = await Product.find({ subcategory: subId });
-
-        if (!products || products.length === 0) {
-            return res.status(404).json({ message: 'No products found for this subcategory' });
-        }
-
-        res.status(200).json(products);
-    } catch (err) {
-        console.error('Error fetching by subcategory:', err);
-
-        // Handle invalid ID format
-        if (err.kind === 'ObjectId') {
-            return res.status(400).json({ message: 'Invalid Subcategory ID format' });
-        }
-
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
 // GET SIMILAR PRODUCTS
 router.get('/:id/similar', async (req, res) => {
-    try {
-        const productId = req.params.id;
+  try {
+    const productId = req.params.id;
 
-        const product = await Product.findById(productId);
-        if (!product) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-
-        const similarProducts = await Product.find({
-            _id: { $ne: productId },
-            $or: [
-                { category: product.category },
-                { subcategory: product.subcategory }
-            ],
-            isAvailable: true
-        })
-            .limit(6)
-            .sort({ createdAt: -1 });
-
-        res.json({
-            message: 'Similar products loaded',
-            products: similarProducts
-        });
-
-    } catch (err) {
-        console.error('SIMILAR PRODUCT ERROR:', err);
-        res.status(500).json({ message: 'Server error' });
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
     }
+
+    const similarProducts = await Product.find({
+      _id: { $ne: productId }, 
+      $or: [
+        { category: product.category },
+        { subcategory: product.subcategory }
+      ],
+      isAvailable: true
+    })
+      .limit(6)
+      .sort({ createdAt: -1 });
+
+    res.json({
+      message: 'Similar products loaded',
+      products: similarProducts
+    });
+
+  } catch (err) {
+    console.error('SIMILAR PRODUCT ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 
