@@ -56,6 +56,32 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     }
 });
 
+
+// GET products by subcategory
+router.get('/subcategory/:subcategoryId', async (req, res) => {
+  try {
+    const { subcategoryId } = req.params;
+
+    const products = await Product.find({
+      subcategory: subcategoryId,
+      isAvailable: true
+    })
+      .populate('category', 'name')
+      .populate('subcategory', 'name')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      message: 'Products loaded',
+      products
+    });
+
+  } catch (err) {
+    console.error('SUBCATEGORY PRODUCT ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 // GET all products
 router.get('/', async (req, res) => {
     try {
