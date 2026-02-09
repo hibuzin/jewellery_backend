@@ -16,36 +16,61 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// ADD product to cart
+
+
 router.post('/add', auth, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    if (!productId) return res.status(400).json({ message: 'Product ID is required' });
-    
 
-    const userId = req.userId; // from auth middleware
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+    if (!productId) {
+      return res.status(400).json({ message: 'Product ID is required' });
+    }
+
+    const qty = quantity && quantity > 0 ? quantity : 1;
+
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    // ✅ FETCH PRODUCT
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
 
     let cart = await Cart.findOne({ user: userId });
     if (!cart) {
       cart = new Cart({ user: userId, items: [] });
     }
 
-    const existingItemIndex = cart.items.findIndex(i => i.product.toString() === productId);
+    const existingItemIndex = cart.items.findIndex(
+      i => i.product.toString() === productId
+    );
+
     if (existingItemIndex > -1) {
-      cart.items[existingItemIndex].quantity += quantity || 1;
+      cart.items[existingItemIndex].quantity += qty;
     } else {
-      cart.items.push({ product: productId, quantity: quantity || 1 });
+      cart.items.push({
+        product: product._id,   // ✅ FIX
+        quantity: qty,
+        price: product.price    // ✅ FIX (THIS IS WHY PRICE WAS MISSING)
+      });
     }
 
     await cart.save();
-    res.json({ message: 'Item added to cart', cart });
+
+    res.json({
+      message: 'Item added to cart',
+      cart
+    });
 
   } catch (err) {
-    console.error(err);
+    console.error('CART ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 // UPDATE product quantity in cart
 router.put('/', auth, async (req, res) => {
@@ -75,23 +100,15 @@ router.put('/', auth, async (req, res) => {
 });
 
 // REMOVE product from cart
-router.delete('/:productId', auth, async (req, res) => {
+router.delete('/clear', auth, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.userId });
-
-    if (!cart || !cart.items) {
-      return res.status(400).json({ message: 'Cart is empty' });
-    }
-
-    cart.items = cart.items.filter(
-      item => item.product.toString() !== req.params.productId
+    await Cart.findOneAndUpdate(
+      { user: req.userId },
+      { $set: { items: [] } }
     );
 
-    await cart.save();
-
     res.json({
-      message: 'Item removed from cart',
-      cart
+      message: 'Cart cleared',
     });
 
   } catch (err) {
