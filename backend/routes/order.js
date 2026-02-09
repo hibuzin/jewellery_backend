@@ -9,71 +9,54 @@ console.log('order route loaded');
 
 router.post('/', auth, async (req, res) => {
   try {
-    const { address, paymentMethod } = req.body;
+    const { productId, quantity, address, paymentMethod } = req.body;
 
-    if (!address || !paymentMethod) {
-      return res.status(400).json({ message: 'Address & payment method required' });
+    // validation
+    if (!productId || !address || !paymentMethod) {
+      return res.status(400).json({ message: 'Required fields missing' });
     }
 
-    // 1️⃣ Get cart
-    const cart = await Cart.findOne({ user: req.userId })
-      .populate('items.product');
+    const qty = quantity && quantity > 0 ? quantity : 1;
 
-    if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Cart is empty' });
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
     }
 
-    let totalAmount = 0;
-    const orderItems = [];
-
-    // 2️⃣ Loop cart items
-    for (const item of cart.items) {
-      const product = item.product;
-
-      if (!product) {
-        return res.status(404).json({ message: 'Product not found' });
-      }
-
-      // 3️⃣ Stock check
-      if (product.quantity < item.quantity) {
-        return res.status(400).json({
-          message: `${product.name} has only ${product.quantity} items left`
-        });
-      }
-
-      // 4️⃣ Reduce stock
-      product.quantity -= item.quantity;
-      if (product.quantity === 0) {
-        product.isAvailable = false;
-      }
-
-      await product.save();
-
-      // 5️⃣ Calculate total
-      totalAmount += product.price * item.quantity;
-
-      orderItems.push({
-        product: product._id,
-        quantity: item.quantity,
-        price: product.price
+    if (product.quantity < qty) {
+      return res.status(400).json({
+        message: `Only ${product.quantity} items left in stock`
       });
     }
 
-    // 6️⃣ Create order
+    // 🔽 REDUCE STOCK
+    product.quantity -= qty;
+
+    if (product.quantity === 0) {
+      product.isAvailable = false;
+    }
+
+    await product.save();
+
+    const totalAmount = product.price * qty;
+
+
     const order = await Order.create({
       user: req.userId,
-      items: orderItems,
+      items: [
+        {
+          product: product._id,
+          quantity: qty,
+          price: product.price
+        }
+      ],
       address,
       paymentMethod,
       totalAmount,
-      status: 'placed'
+      status: 'pending'
     });
 
     await order.populate('items.product');
-
-    // 7️⃣ Clear cart
-    cart.items = [];
-    await cart.save();
 
     res.status(201).json({
       message: 'Order placed successfully',

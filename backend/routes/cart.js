@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const Cart = require('../models/cart');
+const Cart = require('../models/Cart'); // ← add this line
 const Product = require('../models/product');
+
 
 // GET user's cart
 router.get('/', auth, async (req, res) => {
   try {
     let cart = await Cart.findOne({ user: req.userId }).populate('items.product');
-    if (!cart) cart = await Cart.create({ user: req.userId, products: [] });
+    if (!cart) cart = await Cart.create({ user: req.userId, items: [] });
     res.json({ cart });
   } catch (err) {
     console.error(err);
@@ -20,6 +21,7 @@ router.get('/', auth, async (req, res) => {
 
 router.post('/add', auth, async (req, res) => {
   try {
+    console.log('CART USER ID:', req.userId);
     const { productId, quantity } = req.body;
 
     if (!productId) {
@@ -39,6 +41,11 @@ router.post('/add', auth, async (req, res) => {
       return res.status(404).json({ message: 'Product not found' });
     }
 
+
+    if (product.price === undefined) {
+      return res.status(400).json({ message: 'Product price is missing' });
+    }
+
     let cart = await Cart.findOne({ user: userId });
     if (!cart) {
       cart = new Cart({ user: userId, items: [] });
@@ -47,6 +54,16 @@ router.post('/add', auth, async (req, res) => {
     const existingItemIndex = cart.items.findIndex(
       i => i.product.toString() === productId
     );
+
+    const existingQty =
+      existingItemIndex > -1 ? cart.items[existingItemIndex].quantity : 0;
+
+    if (product.quantity < existingQty + qty) {
+      return res.status(400).json({
+        message: `Only ${product.quantity} items available in stock`
+      });
+    }
+
 
     if (existingItemIndex > -1) {
       cart.items[existingItemIndex].quantity += qty;
