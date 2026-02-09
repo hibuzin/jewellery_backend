@@ -15,7 +15,7 @@ const wishlistRoutes = require('./routes/wishlist');
 const cartRoutes = require('./routes/cart');
 const orderRoutes = require('./routes/order');
 const addressRoutes = require('./routes/address');
-
+const chatRoutes = require('./routes/chat');
 
 
 
@@ -28,6 +28,8 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/address', addressRoutes);
+app.use('/api/chat', chatRoutes);
+
 
 
 

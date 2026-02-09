@@ -125,6 +125,7 @@ router.put('/:orderId/status', auth, async (req, res) => {
     }
 
     const order = await Order.findById(req.params.orderId);
+    
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
