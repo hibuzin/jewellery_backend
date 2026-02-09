@@ -57,30 +57,30 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 });
 
 
-// GET products by subcategory
-router.get('/subcategory/:subcategoryId', async (req, res) => {
-  try {
-    const { subcategoryId } = req.params;
+// GET products by subcategory ID
+router.get('/subcategory/:subId', async (req, res) => {
+    try {
+        const { subId } = req.params;
 
-    const products = await Product.find({
-      subcategory: subcategoryId,
-      isAvailable: true
-    })
-      .populate('category', 'name')
-      .populate('subcategory', 'name')
-      .sort({ createdAt: -1 });
+        // Find all products where the subcategory field matches the ID
+        const products = await Product.find({ subcategory: subId });
 
-    res.json({
-      message: 'Products loaded',
-      products
-    });
+        if (!products || products.length === 0) {
+            return res.status(404).json({ message: 'No products found for this subcategory' });
+        }
 
-  } catch (err) {
-    console.error('SUBCATEGORY PRODUCT ERROR:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
+        res.status(200).json(products);
+    } catch (err) {
+        console.error('Error fetching by subcategory:', err);
+        
+        // Handle invalid ID format
+        if (err.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'Invalid Subcategory ID format' });
+        }
+        
+        res.status(500).json({ message: 'Server error' });
+    }
 });
-
 
 // GET all products
 router.get('/', async (req, res) => {
