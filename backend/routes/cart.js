@@ -77,17 +77,28 @@ router.put('/', auth, async (req, res) => {
 // REMOVE product from cart
 router.delete('/:productId', auth, async (req, res) => {
   try {
-    const { productId } = req.params;
-    let cart = await Cart.findOne({ user: req.userId });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    const cart = await Cart.findOne({ user: req.userId });
 
-    cart.products = cart.products.filter(p => p.product.toString() !== productId);
+    if (!cart || !cart.items) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    cart.items = cart.items.filter(
+      item => item.product.toString() !== req.params.productId
+    );
+
     await cart.save();
-    res.json({ message: 'Product removed from cart', cart });
+
+    res.json({
+      message: 'Item removed from cart',
+      cart
+    });
+
   } catch (err) {
-    console.error(err);
+    console.error('CART ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 module.exports = router;
