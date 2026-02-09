@@ -1,15 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const Cart = require('../models/Cart'); // ← add this line
+const Cart = require('../models/cart');
 const Product = require('../models/product');
-
 
 // GET user's cart
 router.get('/', auth, async (req, res) => {
   try {
     let cart = await Cart.findOne({ user: req.userId }).populate('items.product');
-    if (!cart) cart = await Cart.create({ user: req.userId, items: [] });
+    if (!cart) cart = await Cart.create({ user: req.userId, products: [] });
     res.json({ cart });
   } catch (err) {
     console.error(err);
@@ -17,77 +16,36 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-
-
+// ADD product to cart
 router.post('/add', auth, async (req, res) => {
   try {
-    console.log('CART USER ID:', req.userId);
     const { productId, quantity } = req.body;
+    if (!productId) return res.status(400).json({ message: 'Product ID is required' });
+    
 
-    if (!productId) {
-      return res.status(400).json({ message: 'Product ID is required' });
-    }
-
-    const qty = quantity && quantity > 0 ? quantity : 1;
-
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    // ✅ FETCH PRODUCT
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
-
-    if (product.price === undefined) {
-      return res.status(400).json({ message: 'Product price is missing' });
-    }
+    const userId = req.userId; // from auth middleware
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     let cart = await Cart.findOne({ user: userId });
     if (!cart) {
       cart = new Cart({ user: userId, items: [] });
     }
 
-    const existingItemIndex = cart.items.findIndex(
-      i => i.product.toString() === productId
-    );
-
-    const existingQty =
-      existingItemIndex > -1 ? cart.items[existingItemIndex].quantity : 0;
-
-    if (product.quantity < existingQty + qty) {
-      return res.status(400).json({
-        message: `Only ${product.quantity} items available in stock`
-      });
-    }
-
-
+    const existingItemIndex = cart.items.findIndex(i => i.product.toString() === productId);
     if (existingItemIndex > -1) {
-      cart.items[existingItemIndex].quantity += qty;
+      cart.items[existingItemIndex].quantity += quantity || 1;
     } else {
-      cart.items.push({
-        product: product._id,   // ✅ FIX
-        quantity: qty,
-        price: product.price    // ✅ FIX (THIS IS WHY PRICE WAS MISSING)
-      });
+      cart.items.push({ product: productId, quantity: quantity || 1 });
     }
 
     await cart.save();
-
-    res.json({
-      message: 'Item added to cart',
-      cart
-    });
+    res.json({ message: 'Item added to cart', cart });
 
   } catch (err) {
-    console.error('CART ERROR:', err);
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 // UPDATE product quantity in cart
 router.put('/', auth, async (req, res) => {
@@ -117,22 +75,19 @@ router.put('/', auth, async (req, res) => {
 });
 
 // REMOVE product from cart
-router.delete('/clear', auth, async (req, res) => {
+router.delete('/:productId', auth, async (req, res) => {
   try {
-    await Cart.findOneAndUpdate(
-      { user: req.userId },
-      { $set: { items: [] } }
-    );
+    const { productId } = req.params;
+    let cart = await Cart.findOne({ user: req.userId });
+    if (!cart) return res.status(404).json({ message: 'Cart not found' });
 
-    res.json({
-      message: 'Cart cleared',
-    });
-
+    cart.products = cart.products.filter(p => p.product.toString() !== productId);
+    await cart.save();
+    res.json({ message: 'Product removed from cart', cart });
   } catch (err) {
-    console.error('CART ERROR:', err);
+    console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 module.exports = router;
