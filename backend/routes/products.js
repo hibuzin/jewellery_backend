@@ -3,6 +3,8 @@ const Product = require('../models/product');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
 const auth = require('../middleware/auth');
+const Subcategory = require('../models/subcategory'); 
+const Category = require('../models/category'); // <-- ADD THIS
 const streamifier = require('streamifier');
 
 const router = express.Router();
@@ -16,6 +18,16 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
         if (!title || !category || !subcategory || !price || !gram || !description || !quantity) {
             return res.status(400).json({ message: 'All fields are required' });
         }
+         const categoryExists = await Category.findById(category);
+    if (!categoryExists) {
+      return res.status(400).json({ message: 'Invalid Category ID' });
+    }
+
+    // 3️⃣ Validate Subcategory
+    const subcategoryExists = await Subcategory.findById(subcategory);
+    if (!subcategoryExists) {
+      return res.status(400).json({ message: 'Invalid Subcategory ID' });
+    }
 
 
 
@@ -39,6 +51,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             gram,
             description,
             quantity,
+            isAvailable: quantity > 0,   
             image: {
                 public_id: result.public_id,
                 url: result.secure_url
@@ -55,6 +68,36 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
+
+// GET all products by category ID
+router.get('/category/:categoryId', async (req, res) => {
+    try {
+        const { categoryId } = req.params;
+
+        // Find products where the category matches the ID
+        const products = await Product.find({ category: categoryId })
+            .populate('category', 'name')
+            .populate('subcategory', 'name')
+            .sort({ createdAt: -1 });
+
+        if (!products || products.length === 0) {
+            return res.status(404).json({ message: 'No products found for this category' });
+        }
+
+        res.json(products);
+    } catch (err) {
+        console.error('Error fetching products by category:', err);
+
+        // Handle invalid ID format
+        if (err.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'Invalid Category ID' });
+        }
+
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 
 
 // GET products by subcategory ID
@@ -99,48 +142,42 @@ router.get('/', async (req, res) => {
 // GET single product
 router.get('/:id', async (req, res) => {
     try {
-        const product = await Product.findById(req.params.id)
-            .populate('category', 'name')
-            .populate('subcategory', 'name');
-
-        if (!product) return res.status(404).json({ message: 'Jewellery not found' });
-
-        res.json(product);
+        const category = await Category.findById(req.params.id);
+        if (!category) return res.status(404).json({ message: 'Category not found' });
+        res.json(category);
     } catch (err) {
+        console.error(err);
+        if (err.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'Invalid category ID' });
+        }
         res.status(500).json({ message: 'Server error' });
     }
 });
 
-// GET SIMILAR PRODUCTS
 router.get('/:id/similar', async (req, res) => {
-  try {
-    const productId = req.params.id;
+    try {
+        const { id } = req.params;
 
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+        // 1. Get current product
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        // 2. Find similar products
+        const similarProducts = await Product.find({
+            _id: { $ne: product._id },           // exclude current product
+            category: product.category,          // same category
+            subcategory: product.subcategory     // same subcategory (optional)
+        })
+
+            .select('title price image category subcategory');  // optimize response
+
+        res.json(similarProducts);
+    } catch (err) {
+        console.error('SIMILAR PRODUCT ERROR:', err);
+        res.status(500).json({ message: 'Server error' });
     }
-
-    const similarProducts = await Product.find({
-      _id: { $ne: productId }, 
-      $or: [
-        { category: product.category },
-        { subcategory: product.subcategory }
-      ],
-      isAvailable: true
-    })
-      .limit(6)
-      .sort({ createdAt: -1 });
-
-    res.json({
-      message: 'Similar products loaded',
-      products: similarProducts
-    });
-
-  } catch (err) {
-    console.error('SIMILAR PRODUCT ERROR:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
 });
 
 

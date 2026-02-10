@@ -1,92 +1,142 @@
 const express = require('express');
-const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Cart = require('../models/cart');
 const Product = require('../models/product');
 
-// GET user's cart
+const router = express.Router();
+
+// 1️⃣ GET USER CART
 router.get('/', auth, async (req, res) => {
   try {
-    let cart = await Cart.findOne({ user: req.userId }).populate('items.product');
-    if (!cart) cart = await Cart.create({ user: req.userId, products: [] });
-    res.json({ cart });
+    const cart = await Cart.findOne({ user: req.userId })
+      .populate('items.product');
+
+    if (!cart) {
+      return res.json({ items: [], totalAmount: 0 });
+    }
+
+    const totalAmount = cart.items.reduce(
+      (sum, item) => sum + item.product.price * item.quantity,
+      0
+    );
+
+    res.json({
+      items: cart.items,
+      totalAmount
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Failed to load cart' });
   }
 });
 
-// ADD product to cart
+// 2️⃣ ADD TO CART
 router.post('/add', auth, async (req, res) => {
   try {
-    const { productId, quantity } = req.body;
-    if (!productId) return res.status(400).json({ message: 'Product ID is required' });
-    
+    const { productId, quantity = 1 } = req.body;
 
-    const userId = req.userId; // from auth middleware
-    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
-
-    let cart = await Cart.findOne({ user: userId });
-    if (!cart) {
-      cart = new Cart({ user: userId, items: [] });
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
     }
 
-    const existingItemIndex = cart.items.findIndex(i => i.product.toString() === productId);
-    if (existingItemIndex > -1) {
-      cart.items[existingItemIndex].quantity += quantity || 1;
+    // Check if product is in stock
+    if (!product.isAvailable || product.quantity < quantity) {
+      return res.status(400).json({ error: 'Product is out of stock or insufficient quantity' });
+    }
+
+    let cart = await Cart.findOne({ user: req.userId });
+
+    if (!cart) {
+      cart = new Cart({ user: req.userId, items: [] });
+    }
+
+    const itemIndex = cart.items.findIndex(
+      item => item.product.toString() === productId
+    );
+
+    if (itemIndex > -1) {
+      // Check if adding more exceeds stock
+      if (cart.items[itemIndex].quantity + quantity > product.quantity) {
+        return res.status(400).json({ error: 'Cannot add more than available stock' });
+      }
+      cart.items[itemIndex].quantity += quantity;
     } else {
-      cart.items.push({ product: productId, quantity: quantity || 1 });
+      cart.items.push({ product: productId, quantity });
     }
 
     await cart.save();
-    res.json({ message: 'Item added to cart', cart });
 
+    res.status(201).json({
+      message: 'Product added to cart',
+      cart
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Add to cart failed' });
   }
 });
 
-// UPDATE product quantity in cart
+// 3️⃣ UPDATE CART ITEM QUANTITY
 router.put('/', auth, async (req, res) => {
   try {
     const { productId, quantity } = req.body;
-    if (!productId || quantity === undefined) return res.status(400).json({ message: 'Product ID and quantity required' });
 
-    let cart = await Cart.findOne({ user: req.userId });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
-
-    const item = cart.products.find(p => p.product.toString() === productId);
-    if (!item) return res.status(404).json({ message: 'Product not in cart' });
-
-    if (quantity <= 0) {
-      // Remove item if quantity <= 0
-      cart.products = cart.products.filter(p => p.product.toString() !== productId);
-    } else {
-      item.quantity = quantity;
+    if (quantity < 1) {
+      return res.status(400).json({ error: 'Quantity must be at least 1' });
     }
 
+    const cart = await Cart.findOne({ user: req.userId });
+    if (!cart) return res.status(404).json({ error: 'Cart not found' });
+
+    const item = cart.items.find(
+      item => item.product.toString() === productId
+    );
+
+    if (!item) {
+      return res.status(404).json({ error: 'Item not found in cart' });
+    }
+
+    item.quantity = quantity;
     await cart.save();
+
     res.json({ message: 'Cart updated', cart });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Update cart failed' });
   }
 });
 
-// REMOVE product from cart
-router.delete('/:productId', auth, async (req, res) => {
+// 4️⃣ REMOVE ITEM FROM CART
+router.delete('/remove/:productId', auth, async (req, res) => {
   try {
-    const { productId } = req.params;
-    let cart = await Cart.findOne({ user: req.userId });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    const cart = await Cart.findOne({ user: req.userId });
+    if (!cart) return res.status(404).json({ error: 'Cart not found' });
 
-    cart.products = cart.products.filter(p => p.product.toString() !== productId);
+    cart.items = cart.items.filter(
+      item => item.product.toString() !== req.params.productId
+    );
+
     await cart.save();
-    res.json({ message: 'Product removed from cart', cart });
+
+    res.json({ message: 'Item removed', cart });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Remove item failed' });
+  }
+});
+
+// 5️⃣ CLEAR CART
+router.delete('/clear', auth, async (req, res) => {
+  try {
+    const cart = await Cart.findOne({ user: req.userId });
+    if (!cart) return res.json({ message: 'Cart already empty' });
+
+    cart.items = [];
+    await cart.save();
+
+    res.json({ message: 'Cart cleared' });
+  } catch (err) {
+    res.status(500).json({ error: 'Clear cart failed' });
   }
 });
 

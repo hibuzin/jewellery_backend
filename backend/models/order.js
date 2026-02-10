@@ -1,48 +1,28 @@
 const mongoose = require('mongoose');
 
-const orderSchema = new mongoose.Schema(
+const orderSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  items: [
     {
-        user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
-            required: true
-        },
-
-        items: [
-            {
-                product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
-                quantity: { type: Number, required: true },
-                price: { type: Number, required: true }
-            }
-        ],
-
-        address: {
-            name: String,
-            phone: String,
-            street: String,
-            city: String,
-            state: String,
-            pincode: String
-        },
-
-        paymentMethod: {
-            type: String,
-            enum: ['cod', 'online'],
-            required: true
-        },
-
-    totalAmount: {
-            type: Number,
-            required: true
-        },
-
-        status: {
-            type: String,
-            enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'return requested', 'return accepted', 'returned'],
-            default: 'pending'
-        }
-    },
-    { timestamps: true }
-);
+      product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+      quantity: { type: Number, required: true },
+      price: { type: Number, required: true }
+    }
+  ],
+  totalAmount: { type: Number, required: true },
+  address: { type: String, required: true },
+  paymentMethod: { type: String, required: true },
+  status: { 
+    type: String, 
+    enum: ['pending','confirmed','shipped','delivered','cancelled','return requested','return accepted'], 
+    default: 'pending' 
+  },
+  return: {
+    isRequested: { type: Boolean, default: false },
+    reason: { type: String },
+    status: { type: String },
+    requestedAt: { type: Date }
+  }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

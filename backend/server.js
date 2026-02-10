@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-
 const app = express();
 app.use(express.json());
 app.use(cors());
@@ -16,6 +15,9 @@ const cartRoutes = require('./routes/cart');
 const orderRoutes = require('./routes/order');
 const addressRoutes = require('./routes/address');
 const chatRoutes = require('./routes/chat');
+const checkoutRoutes = require('./routes/checkout');
+
+
 
 
 
@@ -29,6 +31,8 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/address', addressRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/checkout', checkoutRoutes);
+
 
 
 
