@@ -44,6 +44,42 @@ router.post('/send', auth, async (req, res) => {
 });
 
 
+
+router.post('/admin/send', async (req, res) => {
+  try {
+    const { userId, message } = req.body;
+
+    if (!userId || !message) {
+      return res.status(400).json({ message: 'User ID and message are required' });
+    }
+
+    // find or create chat for this user
+    let chat = await Chat.findOne({ user: userId });
+    if (!chat) {
+      chat = await Chat.create({ user: userId });
+    }
+
+    // save message
+    const newMessage = await Message.create({
+      chat: chat._id,
+      senderType: 'admin', // mark as admin
+      message
+    });
+
+    chat.lastMessage = message;
+    await chat.save();
+
+    res.json({
+      message: 'Admin message sent',
+      data: newMessage
+    });
+
+  } catch (err) {
+    console.error('ADMIN CHAT ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 /**
  * ADMIN / APP
  * GET /api/chat/admin/chats

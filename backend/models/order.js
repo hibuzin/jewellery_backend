@@ -1,28 +1,28 @@
 const mongoose = require('mongoose');
 
 const orderSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  items: [
-    {
-      product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
-      quantity: { type: Number, required: true },
-      price: { type: Number, required: true }
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    items: [
+        {
+            product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+            quantity: { type: Number, required: true },
+            price: { type: Number, required: true } // price per item
+        }
+    ],
+    totalAmount: { type: Number, required: true },
+    address: { type: String, required: true },
+    paymentMethod: { type: String, required: true },
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'return requested', 'return accepted'],
+        default: 'pending'
+    },
+    return: {
+        isRequested: { type: Boolean, default: false },
+        reason: { type: String },
+        status: { type: String },
+        requestedAt: { type: Date }
     }
-  ],
-  totalAmount: { type: Number, required: true },
-  address: { type: String, required: true },
-  paymentMethod: { type: String, required: true },
-  status: { 
-    type: String, 
-    enum: ['pending','confirmed','shipped','delivered','cancelled','return requested','return accepted'], 
-    default: 'pending' 
-  },
-  return: {
-    isRequested: { type: Boolean, default: false },
-    reason: { type: String },
-    status: { type: String },
-    requestedAt: { type: Date }
-  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Order', orderSchema);

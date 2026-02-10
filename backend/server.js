@@ -34,12 +34,6 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/checkout', checkoutRoutes);
 
 
-
-
-
-
-
-
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://arshath:tokyodel9600@cluster0.v87mhyy.mongodb.net/';
 
 mongoose.connect(MONGO_URI)

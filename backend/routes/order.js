@@ -1,112 +1,120 @@
+// routes/order.js
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
+const Cart = require('../models/cart');
 const Order = require('../models/order');
 const Product = require('../models/product');
 
-console.log('order route loaded');
-
-
+// PLACE ORDER from cart
 router.post('/', auth, async (req, res) => {
   try {
-    const { productId, quantity, address, paymentMethod } = req.body;
-
-    // validation
-    if (!productId || !address || !paymentMethod) {
-      return res.status(400).json({ message: 'Required fields missing' });
+    const { address, paymentMethod } = req.body;
+    if (!address || !paymentMethod) {
+      return res.status(400).json({ message: 'Address and paymentMethod required' });
     }
 
-    const qty = quantity && quantity > 0 ? quantity : 1;
-
-    const product = await Product.findById(productId);
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
+    const cart = await Cart.findOne({ user: req.userId }).populate('items.product');
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
     }
 
-    if (product.quantity < qty) {
-      return res.status(400).json({
-        message: `Only ${product.quantity} items left in stock`
-      });
+    // Prepare order items
+    const orderItems = cart.items.map(item => ({
+      product: item.product._id,
+      quantity: item.quantity,
+      price: item.product.price
+    }));
+
+    // Total
+    const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+    // Reduce stock
+    for (const item of cart.items) {
+      const product = await Product.findById(item.product._id);
+      if (!product) continue;
+
+      if (product.quantity < item.quantity) {
+        return res.status(400).json({
+          message: `Not enough stock for ${product.title}`
+        });
+      }
+
+      product.quantity -= item.quantity;
+      if (product.quantity <= 0) product.isAvailable = false;
+      await product.save();
     }
 
-    // 🔽 REDUCE STOCK
-    product.quantity -= qty;
-
-    if (product.quantity === 0) {
-      product.isAvailable = false;
-    }
-
-    await product.save();
-
-    const totalAmount = product.price * qty;
-
-
+    // Create order
     const order = await Order.create({
       user: req.userId,
-      items: [
-        {
-          product: product._id,
-          quantity: qty,
-          price: product.price
-        }
-      ],
+      items: orderItems,
+      totalAmount,
       address,
       paymentMethod,
-      totalAmount,
       status: 'pending'
     });
 
+    // Clear cart
+    cart.items = [];
+    await cart.save();
+
     await order.populate('items.product');
 
-    res.status(201).json({
-      message: 'Order placed successfully',
-      order
-    });
-
+    res.status(201).json({ message: 'Order placed successfully', order });
   } catch (err) {
-    console.error('ORDER ERROR:', err);
+    console.error('ORDER FROM CART ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-
-
-// GET USER ORDERS
+// GET user orders
 router.get('/', auth, async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.userId }).populate('items.product').sort({ createdAt: -1 });
+    res.json({ orders });
+  } catch (err) {
+    console.error('ORDER GET ERROR:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.get('/my-orders', auth, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.userId })
       .populate('items.product')
       .sort({ createdAt: -1 });
 
+
     res.json({ orders });
   } catch (err) {
-    console.error('ORDER ERROR:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Failed to load orders' });
   }
 });
 
-
-// GET SINGLE ORDER
-router.get('/:id', auth, async (req, res) => {
+router.get('/:orderId', auth, async (req, res) => {
   try {
     const order = await Order.findOne({
-      _id: req.params.id,
+      _id: req.params.orderId,
       user: req.userId
     }).populate('items.product');
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
+
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
 
     res.json(order);
   } catch (err) {
-    console.error('ORDER ERROR:', err);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ error: 'Failed to fetch order' });
   }
 });
 
-// UPDATE ORDER STATUS
+
 router.put('/:orderId/status', auth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { status } = req.body;
 
@@ -117,49 +125,49 @@ router.put('/:orderId/status', auth, async (req, res) => {
       'delivered',
       'cancelled',
       'return requested',
-      'return accepted',
+      'return accepted'
     ];
 
-    if (!status || !allowedStatus.includes(status)) {
-      return res.status(400).json({ message: 'Invalid order status' });
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
     }
 
-    const order = await Order.findById(req.params.orderId);
-    
+    const order = await Order.findById(req.params.orderId).session(session);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
-    }
-
-     if (status === 'return accepted' && order.status !== 'return accepted') {
+    // 🔁 ADD STOCK BACK ON RETURNED
+    if (status === 'return accepted' && order.status !== 'return accepted') {
       for (const item of order.items) {
-        const product = await Product.findById(item.product._id);
-
-        if (product) {
-          product.quantity += item.quantity; // ✅ add back stock
-          await product.save();
-        }
+        await Product.findByIdAndUpdate(
+          item.product,
+          { $inc: { quantity: item.quantity } },
+          { session }
+        );
       }
     }
 
     order.status = status;
-    await order.save();
+    await order.save({ session });
 
-    res.json({
-      message: 'Order status updated',
-      order
-    });
+    await session.commitTransaction();
+
+    res.json({ message: 'Order status updated', order });
 
   } catch (err) {
-    console.error('ORDER STATUS ERROR:', err);
-    res.status(500).json({ message: 'Server error' });
+    await session.abortTransaction();
+    res.status(500).json({ error: 'Status update failed' });
+  } finally {
+    session.endSession();
   }
 });
 
+
+// REQUEST ORDER RETURN
 router.post('/:orderId/return', auth, async (req, res) => {
   try {
     const { reason } = req.body;
 
+    // Find the order for the logged-in user
     const order = await Order.findOne({
       _id: req.params.orderId,
       user: req.userId
@@ -169,16 +177,17 @@ router.post('/:orderId/return', auth, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    // Only allow return if order is delivered
     if (order.status !== 'delivered') {
-      return res.status(400).json({
-        message: 'Return allowed only after delivery'
-      });
+      return res.status(400).json({ message: 'Return allowed only after delivery' });
     }
 
+    // Check if return was already requested
     if (order.return?.isRequested) {
       return res.status(400).json({ message: 'Return already requested' });
     }
 
+    // Add return request info
     order.return = {
       isRequested: true,
       reason,
@@ -200,7 +209,4 @@ router.post('/:orderId/return', auth, async (req, res) => {
 });
 
 
-
 module.exports = router;
-
-
