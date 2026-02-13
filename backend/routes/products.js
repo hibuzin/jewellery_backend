@@ -67,6 +67,33 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 });
 
 
+router.get('/:id/share', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const product = await Product.findById(id)
+            .populate('category', 'name')
+            .populate('subcategory', 'name');
+
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+
+        // Generate product link (change domain to your frontend website)
+        const productLink = `https://react-jewellery.onrender.com/product/${product._id}`;
+
+        res.json({
+            success: true,
+            productLink
+        });
+
+    } catch (err) {
+        console.error('SHARE PRODUCT LINK ERROR:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
+
 router.get('/:id/exactprice', async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
