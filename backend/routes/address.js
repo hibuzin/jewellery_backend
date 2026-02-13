@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Address = require('../models/address');
 
-// CREATE address
 router.post('/', auth, async (req, res) => {
   try {
     const { name, phone, street, city, state, pincode, isDefault } = req.body;
@@ -12,7 +11,6 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
-    // if new default address → unset old default
     if (isDefault) {
       await Address.updateMany(
         { user: req.userId },
@@ -42,7 +40,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET all addresses of user
 router.get('/', auth, async (req, res) => {
   try {
     const addresses = await Address.find({ user: req.userId }).sort({ createdAt: -1 });
@@ -53,7 +50,6 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// UPDATE address
 router.put('/:id', auth, async (req, res) => {
   try {
     const { isDefault } = req.body;
@@ -86,7 +82,6 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE address
 router.delete('/:id', auth, async (req, res) => {
   try {
     const address = await Address.findOneAndDelete({

@@ -1,4 +1,4 @@
-// routes/order.js
+
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
@@ -7,7 +7,7 @@ const Cart = require('../models/cart');
 const Order = require('../models/order');
 const Product = require('../models/product');
 
-// PLACE ORDER from cart
+
 router.post('/', auth, async (req, res) => {
   try {
     const { address, paymentMethod } = req.body;
@@ -20,17 +20,16 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cart is empty' });
     }
 
-    // Prepare order items
+    
     const orderItems = cart.items.map(item => ({
       product: item.product._id,
       quantity: item.quantity,
       price: item.product.price
     }));
 
-    // Total
+   
     const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    // Reduce stock
     for (const item of cart.items) {
       const product = await Product.findById(item.product._id);
       if (!product) continue;
@@ -46,7 +45,6 @@ router.post('/', auth, async (req, res) => {
       await product.save();
     }
 
-    // Create order
     const order = await Order.create({
       user: req.userId,
       items: orderItems,
@@ -56,7 +54,6 @@ router.post('/', auth, async (req, res) => {
       status: 'pending'
     });
 
-    // Clear cart
     cart.items = [];
     await cart.save();
 
@@ -69,7 +66,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// GET user orders
 router.get('/', auth, async (req, res) => {
   try {
     const orders = await Order.find({ user: req.userId }).populate('items.product').sort({ createdAt: -1 });
@@ -135,7 +131,6 @@ router.put('/:orderId/status', auth, async (req, res) => {
     const order = await Order.findById(req.params.orderId).session(session);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    // 🔁 ADD STOCK BACK ON RETURNED
     if (status === 'return accepted' && order.status !== 'return accepted') {
       for (const item of order.items) {
         await Product.findByIdAndUpdate(
@@ -162,12 +157,10 @@ router.put('/:orderId/status', auth, async (req, res) => {
 });
 
 
-// REQUEST ORDER RETURN
 router.post('/:orderId/return', auth, async (req, res) => {
   try {
     const { reason } = req.body;
 
-    // Find the order for the logged-in user
     const order = await Order.findOne({
       _id: req.params.orderId,
       user: req.userId
@@ -177,17 +170,14 @@ router.post('/:orderId/return', auth, async (req, res) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    // Only allow return if order is delivered
     if (order.status !== 'delivered') {
       return res.status(400).json({ message: 'Return allowed only after delivery' });
     }
 
-    // Check if return was already requested
     if (order.return?.isRequested) {
       return res.status(400).json({ message: 'Return already requested' });
     }
 
-    // Add return request info
     order.return = {
       isRequested: true,
       reason,

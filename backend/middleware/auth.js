@@ -7,7 +7,7 @@ module.exports = (req, res, next) => {
     return res.status(401).json({ message: 'Token not found' });
   }
 
-  const token = authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader.split(' ')[1]; 
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

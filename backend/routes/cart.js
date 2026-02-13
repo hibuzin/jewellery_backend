@@ -1,4 +1,3 @@
-// routes/cart.js
 const express = require('express');
 const Cart = require('../models/cart');
 const Product = require('../models/product');
@@ -6,7 +5,6 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET user cart
 router.get('/', auth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.userId }).populate('items.product');
@@ -74,24 +72,44 @@ router.post('/add', auth, async (req, res) => {
   }
 });
 
-
-// REMOVE item
 router.delete('/remove/:productId', auth, async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.userId });
-    if (!cart) return res.status(404).json({ message: 'Cart not found' });
+    const { productId } = req.params;
 
-    cart.items = cart.items.filter(i => i.product.toString() !== req.params.productId);
+    const cart = await Cart.findOne({ user: req.userId });
+
+    if (!cart) {
+      return res.status(404).json({ message: 'Cart not found' });
+    }
+
+    // Check if product exists in cart
+    const itemIndex = cart.items.findIndex(
+      item => item.product.toString() === productId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: 'Product not in cart' });
+    }
+
+    // Remove item
+    cart.items.splice(itemIndex, 1);
+
     await cart.save();
 
-    res.json({ message: 'Item removed', cart });
+    await cart.populate('items.product');
+
+    res.json({
+      message: 'Item removed successfully',
+      cart
+    });
+
   } catch (err) {
     console.error('CART REMOVE ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// CLEAR cart
+
 router.delete('/clear', auth, async (req, res) => {
   try {
     const cart = await Cart.findOne({ user: req.userId });

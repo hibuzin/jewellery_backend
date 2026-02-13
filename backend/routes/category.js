@@ -19,7 +19,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'Image is required.' });
     }
 
-    // Upload image to Cloudinary
     const uploadToCloudinary = () =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -31,7 +30,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 
     const result = await uploadToCloudinary();
 
-    // Create category in DB
     const category = await Category.create({
       name,
       image: {
@@ -48,7 +46,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   }
 });
 
-// GET all categories
 router.get('/', async (req, res) => {
   try {
     const categories = await Category.find();
@@ -59,7 +56,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET single category by ID
 router.get('/:id', async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
@@ -71,7 +67,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// UPDATE category
 router.put('/:id', auth, upload.single('image'), async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
@@ -106,7 +101,6 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
   }
 });
 
-// DELETE category
 router.delete('/:id', auth, async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);

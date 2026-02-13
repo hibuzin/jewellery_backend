@@ -4,10 +4,7 @@ const auth = require('../middleware/auth');
 const Chat = require('../models/chat');
 const Message = require('../models/message');
 
-/**
- * USER SEND MESSAGE
- * POST /api/chat/send
- */
+
 router.post('/send', auth, async (req, res) => {
   try {
     const { message } = req.body;
@@ -16,13 +13,12 @@ router.post('/send', auth, async (req, res) => {
       return res.status(400).json({ message: 'Message required' });
     }
 
-    // find or create chat
+    
     let chat = await Chat.findOne({ user: req.userId });
     if (!chat) {
       chat = await Chat.create({ user: req.userId });
     }
 
-    // save message
     const newMessage = await Message.create({
       chat: chat._id,
       senderType: 'user',
@@ -53,16 +49,14 @@ router.post('/admin/send', async (req, res) => {
       return res.status(400).json({ message: 'User ID and message are required' });
     }
 
-    // find or create chat for this user
     let chat = await Chat.findOne({ user: userId });
     if (!chat) {
       chat = await Chat.create({ user: userId });
     }
 
-    // save message
     const newMessage = await Message.create({
       chat: chat._id,
-      senderType: 'admin', // mark as admin
+      senderType: 'admin',
       message
     });
 
@@ -80,10 +74,7 @@ router.post('/admin/send', async (req, res) => {
   }
 });
 
-/**
- * ADMIN / APP
- * GET /api/chat/admin/chats
- */
+
 router.get('/admin/chats', async (req, res) => {
   try {
     const chats = await Chat.find()
@@ -97,10 +88,7 @@ router.get('/admin/chats', async (req, res) => {
 });
 
 
-/**
- * ADMIN / APP
- * GET /api/chat/admin/:chatId/messages
- */
+
 router.get('/admin/:chatId/messages', async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })

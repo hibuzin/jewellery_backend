@@ -24,7 +24,6 @@ router.post('/', auth, async (req, res) => {
       wishlist = new Wishlist({ user: req.userId, items: [] });
     }
 
-    // Prevent duplicates
     const exists = wishlist.items.some(item => item.product.toString() === productId);
     if (exists) return res.status(400).json({ message: 'Product already in wishlist' });
 
@@ -50,7 +49,6 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/wishlist/:productId - Remove product from wishlist
 router.delete('/:productId', auth, async (req, res) => {
   try {
     const { productId } = req.params;

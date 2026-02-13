@@ -16,6 +16,7 @@ const orderRoutes = require('./routes/order');
 const addressRoutes = require('./routes/address');
 const chatRoutes = require('./routes/chat');
 const checkoutRoutes = require('./routes/checkout');
+const whatsappRoutes = require('./routes/chatwhatsapp');
 
 
 
@@ -32,7 +33,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/address', addressRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/checkout', checkoutRoutes);
-
+app.use('/api/chat/whatsapp', whatsappRoutes);
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://arshath:tokyodel9600@cluster0.v87mhyy.mongodb.net/';
 

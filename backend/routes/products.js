@@ -3,35 +3,31 @@ const Product = require('../models/product');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
 const auth = require('../middleware/auth');
-const Subcategory = require('../models/subcategory'); 
-const Category = require('../models/category'); // <-- ADD THIS
+const Subcategory = require('../models/subcategory');
+const Category = require('../models/category');
 const streamifier = require('streamifier');
 
 const router = express.Router();
 
-// CREATE product
 router.post('/', auth, upload.single('image'), async (req, res) => {
     try {
-        const { title, category, subcategory, price, gram, description, quantity } = req.body;
+        const { title, category, subcategory, price, originalPrice, gram, description, quantity } = req.body;
 
-        // validation
-        if (!title || !category || !subcategory || !price || !gram || !description || !quantity) {
+        if (!title || !category || !subcategory || !price || !originalPrice || !gram || !description || !quantity) {
             return res.status(400).json({ message: 'All fields are required' });
         }
-         const categoryExists = await Category.findById(category);
-    if (!categoryExists) {
-      return res.status(400).json({ message: 'Invalid Category ID' });
-    }
+        const categoryExists = await Category.findById(category);
+        if (!categoryExists) {
+            return res.status(400).json({ message: 'Invalid Category ID' });
+        }
 
-    // 3️⃣ Validate Subcategory
-    const subcategoryExists = await Subcategory.findById(subcategory);
-    if (!subcategoryExists) {
-      return res.status(400).json({ message: 'Invalid Subcategory ID' });
-    }
-
+        const subcategoryExists = await Subcategory.findById(subcategory);
+        if (!subcategoryExists) {
+            return res.status(400).json({ message: 'Invalid Subcategory ID' });
+        }
 
 
-        // upload to Cloudinary
+
         const uploadToCloudinary = () =>
             new Promise((resolve, reject) => {
                 const stream = cloudinary.uploader.upload_stream(
@@ -43,6 +39,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 
         const result = await uploadToCloudinary();
 
+
         const product = await Product.create({
             title,
             category,
@@ -51,7 +48,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             gram,
             description,
             quantity,
-            isAvailable: quantity > 0,   
+            isAvailable: quantity > 0,
             image: {
                 public_id: result.public_id,
                 url: result.secure_url
@@ -70,12 +67,44 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 });
 
 
-// GET all products by category ID
+router.get('/:id/exactprice', async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        const originalPrice = product.price;
+        const finalPrice = product.offerPrice || product.price;
+
+        const discount =
+            product.offerPrice
+                ? Math.round(
+                    ((originalPrice - finalPrice) / originalPrice) * 100
+                )
+                : 0;
+
+        res.json({
+            productId: product._id,
+            title: product.title,
+            originalPrice,
+            finalPrice,
+            discountPercent: discount
+        });
+
+    } catch (err) {
+        console.error('PRICE ERROR:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
+
 router.get('/category/:categoryId', async (req, res) => {
     try {
         const { categoryId } = req.params;
 
-        // Find products where the category matches the ID
         const products = await Product.find({ category: categoryId })
             .populate('category', 'name')
             .populate('subcategory', 'name')
@@ -89,7 +118,6 @@ router.get('/category/:categoryId', async (req, res) => {
     } catch (err) {
         console.error('Error fetching products by category:', err);
 
-        // Handle invalid ID format
         if (err.kind === 'ObjectId') {
             return res.status(400).json({ message: 'Invalid Category ID' });
         }
@@ -100,12 +128,10 @@ router.get('/category/:categoryId', async (req, res) => {
 
 
 
-// GET products by subcategory ID
 router.get('/subcategory/:subId', async (req, res) => {
     try {
         const { subId } = req.params;
 
-        // Find all products where the subcategory field matches the ID
         const products = await Product.find({ subcategory: subId });
 
         if (!products || products.length === 0) {
@@ -115,17 +141,15 @@ router.get('/subcategory/:subId', async (req, res) => {
         res.status(200).json(products);
     } catch (err) {
         console.error('Error fetching by subcategory:', err);
-        
-        // Handle invalid ID format
+
         if (err.kind === 'ObjectId') {
             return res.status(400).json({ message: 'Invalid Subcategory ID format' });
         }
-        
+
         res.status(500).json({ message: 'Server error' });
     }
 });
 
-// GET all products
 router.get('/', async (req, res) => {
     try {
         const products = await Product.find()
@@ -139,25 +163,24 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET single product by ID
 router.get('/:id', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id)
-      .populate('category', 'name')       // populate category name
-      .populate('subcategory', 'name');  // populate subcategory name
+    try {
+        const product = await Product.findById(req.params.id)
+            .populate('category', 'name')
+            .populate('subcategory', 'name');
 
-    if (!product) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
 
-    res.json(product);
-  } catch (err) {
-    console.error('GET PRODUCT ERROR:', err);
-    if (err.kind === 'ObjectId') {
-      return res.status(400).json({ message: 'Invalid product ID' });
+        res.json(product);
+    } catch (err) {
+        console.error('GET PRODUCT ERROR:', err);
+        if (err.kind === 'ObjectId') {
+            return res.status(400).json({ message: 'Invalid product ID' });
+        }
+        res.status(500).json({ message: 'Server error' });
     }
-    res.status(500).json({ message: 'Server error' });
-  }
 });
 
 
@@ -165,20 +188,20 @@ router.get('/:id/similar', async (req, res) => {
     try {
         const { id } = req.params;
 
-        // 1. Get current product
+
         const product = await Product.findById(id);
         if (!product) {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // 2. Find similar products
+
         const similarProducts = await Product.find({
-            _id: { $ne: product._id },           // exclude current product
-            category: product.category,          // same category
-            subcategory: product.subcategory     // same subcategory (optional)
+            _id: { $ne: product._id },
+            category: product.category,
+            subcategory: product.subcategory
         })
 
-            .select('title price image category subcategory');  // optimize response
+            .select('title price image category subcategory');
 
         res.json(similarProducts);
     } catch (err) {
@@ -212,7 +235,7 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
     }
 });
 
-// DELETE product
+
 router.delete('/:id', auth, async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);

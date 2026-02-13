@@ -1,4 +1,4 @@
-// models/cart.js
+
 const mongoose = require('mongoose');
 
 const cartSchema = new mongoose.Schema({

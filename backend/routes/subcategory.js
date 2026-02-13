@@ -9,7 +9,6 @@ const Category = require('../models/category');
 
 console.log('subcategory.js loaded');
 
-// CREATE subcategory
 router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
     const { name, categoryId } = req.body;
@@ -18,7 +17,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'Name and categoryId required' });
     }
 
-    // Check if category exists
     const category = await Category.findById(categoryId);
     if (!category) {
       return res.status(404).json({ error: 'Category not found' });
@@ -28,7 +26,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'Image required' });
     }
 
-    // Upload image to Cloudinary
     const uploadToCloudinary = () =>
       new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
@@ -40,7 +37,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 
     const result = await uploadToCloudinary();
 
-    // Create subcategory in DB
     const subcategory = await Subcategory.create({
       name,
       category: categoryId,
@@ -58,7 +54,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   }
 });
 
-// GET all subcategories
 router.get('/', async (req, res) => {
   try {
     const subcategories = await Subcategory.find().populate('category', 'name');
@@ -69,7 +64,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET single subcategory by ID
 router.get('/:id', async (req, res) => {
   try {
     const subcategory = await Subcategory.findById(req.params.id).populate('category', 'name');
@@ -81,7 +75,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// UPDATE subcategory
 router.put('/:id', auth, upload.single('image'), async (req, res) => {
   try {
     const subcategory = await Subcategory.findById(req.params.id);
@@ -123,7 +116,6 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
   }
 });
 
-// DELETE subcategory
 router.delete('/:id', auth, async (req, res) => {
   try {
     const subcategory = await Subcategory.findById(req.params.id);

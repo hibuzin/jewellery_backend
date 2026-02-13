@@ -4,7 +4,7 @@ const categorySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    unique: true // ensures no duplicate category names
+    unique: true 
   },
   image: {
     public_id: { type: String },
