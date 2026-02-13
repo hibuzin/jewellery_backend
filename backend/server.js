@@ -6,6 +6,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+
 const authRoutes = require('./routes/auth');
 const productsRoutes = require('./routes/products');
 const categoryRoutes = require('./routes/category');
@@ -16,9 +17,6 @@ const orderRoutes = require('./routes/order');
 const addressRoutes = require('./routes/address');
 const chatRoutes = require('./routes/chat');
 const checkoutRoutes = require('./routes/checkout');
-
-
-
 
 
 app.use('/api/auth', authRoutes);
