@@ -78,11 +78,14 @@ router.get('/:id/share', async (req, res) => {
         if (!product) return res.status(404).json({ message: 'Product not found' });
 
         // Generate product link (change domain to your frontend website)
-        const productLink = `https://react-jewellery.onrender.com/product/${product._id}`;
+        const productLink = `https://jewellery-backend-icja.onrender.com/product/${product._id}`;
+
+        const whatsappShareLink = `https://wa.me/?text=${encodeURIComponent(productLink)}`;
 
         res.json({
             success: true,
-            productLink
+            productLink,
+            whatsappShareLink
         });
 
     } catch (err) {
