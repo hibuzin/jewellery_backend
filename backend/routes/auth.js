@@ -20,8 +20,7 @@ router.post('/register', async (req, res) => {
             return res.status(400).json({ message: 'Email already registered' });
         }
 
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+
 
         const user = await User.create({
             name,
@@ -66,9 +65,9 @@ router.post('/login', async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
 
 
-      
+
         const token = jwt.sign(
-            { userId: user._id, role: user.role },
+            { userId: user._id },
             process.env.JWT_SECRET,
             { expiresIn: '1d' }
         );
@@ -79,8 +78,8 @@ router.post('/login', async (req, res) => {
             user: {
                 id: user._id,
                 name: user.name,
-                email: user.email,
-                 role: user.role
+                email: user.email
+
             }
         });
 
@@ -89,7 +88,6 @@ router.post('/login', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
-
 
 
 module.exports = router;
