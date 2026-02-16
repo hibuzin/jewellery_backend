@@ -9,13 +9,19 @@ const streamifier = require('streamifier');
 
 const router = express.Router();
 
-router.post('/', auth, upload.single('image'), async (req, res) => {
+router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name: 'images' }]), async (req, res) => {
     try {
         const { title, category, subcategory, price, originalPrice, gram, description, quantity } = req.body;
 
         if (!title || !category || !subcategory || !price || !originalPrice || !gram || !description || !quantity) {
             return res.status(400).json({ message: 'All fields are required' });
         }
+
+        if (!req.files || !req.files.mainImage) {
+        return res.status(400).json({ message: 'Main image is required' });
+      }
+
+      
         const categoryExists = await Category.findById(category);
         if (!categoryExists) {
             return res.status(400).json({ message: 'Invalid Category ID' });
@@ -28,16 +34,39 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 
 
 
-        const uploadToCloudinary = () =>
+        const uploadToCloudinary = (file) =>
             new Promise((resolve, reject) => {
                 const stream = cloudinary.uploader.upload_stream(
                     { folder: 'jewellery' },
-                    (error, result) => (result ? resolve(result) : reject(error))
+                    (error, result) => {
+                        if (result) resolve(result);
+                        else reject(error);
+                    }
                 );
-                streamifier.createReadStream(req.file.buffer).pipe(stream);
+                streamifier.createReadStream(file.buffer).pipe(stream);
             });
 
-        const result = await uploadToCloudinary();
+
+
+        const mainImageResult = await uploadToCloudinary(
+            req.files.mainImage[0]
+        );
+
+
+        let images = [];
+
+        if (req.files.images && req.files.images.length > 0) {
+            const uploadPromises = req.files.images.map(file =>
+                uploadToCloudinary(file)
+            );
+
+            const results = await Promise.all(uploadPromises);
+
+            images = results.map(result => ({
+                public_id: result.public_id,
+                url: result.secure_url
+            }));
+        }
 
 
         const product = await Product.create({
@@ -49,10 +78,11 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
             description,
             quantity,
             isAvailable: quantity > 0,
-            image: {
-                public_id: result.public_id,
-                url: result.secure_url
-            }
+            mainImage: {
+                public_id: mainImageResult.public_id,
+                url: mainImageResult.secure_url
+            },
+            images
         });
 
         res.status(201).json({
@@ -77,8 +107,8 @@ router.get('/:id/share', async (req, res) => {
 
         if (!product) return res.status(404).json({ message: 'Product not found' });
 
-         const frontendURL = "https://react-jewellery.onrender.com";
-         
+        const frontendURL = "https://react-jewellery.onrender.com";
+
         const productLink = `${frontendURL}/product/${product._id}`;
 
         const whatsappShareLink = `https://wa.me/?text=${encodeURIComponent(productLink)}`;
@@ -232,7 +262,8 @@ router.get('/:id/similar', async (req, res) => {
             subcategory: product.subcategory
         })
 
-            .select('title price image category subcategory');
+            .select('title price mainImage category subcategory');
+
 
         res.json(similarProducts);
     } catch (err) {
@@ -243,28 +274,80 @@ router.get('/:id/similar', async (req, res) => {
 
 
 
-router.put('/:id', auth, upload.single('image'), async (req, res) => {
-    try {
-        const data = { ...req.body };
+router.put(
+    '/:id',
+    auth,
+    upload.fields([
+        { name: 'mainImage', maxCount: 1 },
+        { name: 'images' }
+    ]),
+    async (req, res) => {
+        try {
+            const product = await Product.findById(req.params.id);
+            if (!product) {
+                return res.status(404).json({ message: 'Product not found' });
+            }
 
-        if (req.file) {
-            const result = await cloudinary.uploader.upload(
-                `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-                { folder: 'jewellery' }
+            const data = { ...req.body };
+
+            const uploadToCloudinary = (file) =>
+                new Promise((resolve, reject) => {
+                    const stream = cloudinary.uploader.upload_stream(
+                        { folder: 'jewellery' },
+                        (error, result) => {
+                            if (result) resolve(result);
+                            else reject(error);
+                        }
+                    );
+                    streamifier.createReadStream(file.buffer).pipe(stream);
+                });
+
+            // ✅ Replace Main Image (if sent)
+            if (req.files && req.files.mainImage) {
+                // delete old main image
+                await cloudinary.uploader.destroy(product.mainImage.public_id);
+
+                const result = await uploadToCloudinary(
+                    req.files.mainImage[0]
+                );
+
+                data.mainImage = {
+                    public_id: result.public_id,
+                    url: result.secure_url
+                };
+            }
+
+
+            if (req.files && req.files.images) {
+                const uploadPromises = req.files.images.map(file =>
+                    uploadToCloudinary(file)
+                );
+
+                const results = await Promise.all(uploadPromises);
+
+                const newImages = results.map(result => ({
+                    public_id: result.public_id,
+                    url: result.secure_url
+                }));
+
+                data.images = [...product.images, ...newImages];
+            }
+
+            const updatedProduct = await Product.findByIdAndUpdate(
+                req.params.id,
+                data,
+                { new: true }
             );
-            data.image = {
-                public_id: result.public_id,
-                url: result.secure_url
-            };
-        }
 
-        const product = await Product.findByIdAndUpdate(req.params.id, data, { new: true });
-        res.json(product);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Update failed' });
+            res.json(updatedProduct);
+
+        } catch (err) {
+            console.error(err);
+            res.status(500).json({ message: 'Update failed' });
+        }
     }
-});
+);
+
 
 
 router.delete('/:id', auth, async (req, res) => {
@@ -272,14 +355,27 @@ router.delete('/:id', auth, async (req, res) => {
         const product = await Product.findById(req.params.id);
         if (!product) return res.status(404).json({ message: 'Not found' });
 
-        await cloudinary.uploader.destroy(product.image.public_id);
+        // delete main image
+        if (product.mainImage?.public_id) {
+            await cloudinary.uploader.destroy(product.mainImage.public_id);
+        }
+
+        // delete gallery images
+        for (let img of product.images) {
+            if (img.public_id) {
+                await cloudinary.uploader.destroy(img.public_id);
+            }
+        }
+
         await product.deleteOne();
 
         res.json({ message: 'Jewellery deleted' });
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Delete failed' });
     }
 });
+
 
 module.exports = router;
