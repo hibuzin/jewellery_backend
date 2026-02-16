@@ -32,3 +32,23 @@ Runner/GeneratedPluginRegistrant.*
 !default.mode2v3
 !default.pbxuser
 !default.perspectivev3
+
+
+
+# ========================
+# Node / Backend
+# ========================
+
+node_modules/
+backend/node_modules/
+
+# Environment files
+.env
+backend/.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
