@@ -1,4 +1,3 @@
-**/dgph
 *.mode1v3
 *.mode2v3
 *.moved-aside
@@ -33,8 +32,6 @@ Runner/GeneratedPluginRegistrant.*
 !default.pbxuser
 !default.perspectivev3
 
-
-
 # ========================
 # Node / Backend
 # ========================
@@ -44,7 +41,7 @@ backend/node_modules/
 
 # Environment files
 .env
-backend/.env
+*.env.local
 
 # Logs
 *.log
