@@ -10,7 +10,14 @@ const orderSchema = new mongoose.Schema({
         }
     ],
     totalAmount: { type: Number, required: true },
-    address: { type: String, required: true },
+   address: {
+  name: { type: String },
+  phone: { type: String },
+  street: { type: String },
+  city: { type: String },
+  state: { type: String },
+  pincode: { type: String }
+},
     paymentMethod: { type: String, required: true },
     status: {
         type: String,

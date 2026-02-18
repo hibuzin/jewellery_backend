@@ -11,6 +11,8 @@ router.get('/', auth, async (req, res) => {
     const user = await User.findById(req.userId)
       .populate('cart.product');
 
+    user.cart = user.cart.filter(item => item.product && item.product.quantity > 0);
+
     if (!user.cart.length) {
       return res.json({ items: [], totalAmount: 0 });
     }
@@ -44,16 +46,13 @@ router.post('/add', auth, async (req, res) => {
     if (index > -1) {
       const newQuantity = user.cart[index].quantity + quantity;
 
-
       if (newQuantity > product.quantity) {
-        return res.status(400).json({
-          message: `Cannot add more than available stock. Max: ${product.quantity}`
-        });
+        user.cart[index].quantity = product.quantity; // silently cap at max stock
+      } else {
+        user.cart[index].quantity = newQuantity;
       }
 
-      user.cart[index].quantity = newQuantity;
     } else {
-
       if (quantity > product.quantity) {
         return res.status(400).json({
           message: `Cannot add more than available stock. Max: ${product.quantity}`
@@ -61,7 +60,6 @@ router.post('/add', auth, async (req, res) => {
       }
       user.cart.push({ product: productId, quantity });
     }
-
     await user.save();
     await user.populate('cart.product');
 
@@ -72,47 +70,19 @@ router.post('/add', auth, async (req, res) => {
   }
 });
 
-
-
-router.put('/update/:productId', auth, async (req, res) => {
+router.put('/update', auth, async (req, res) => {
   try {
-    const { productId } = req.params;
     const { quantity } = req.body;
 
     if (!quantity || quantity < 1) {
       return res.status(400).json({ message: 'Valid quantity required' });
     }
 
-    const product = await Product.findById(productId);
-    if (!product)
-      return res.status(404).json({ message: 'Product not found' });
-
-    if (quantity > product.quantity) {
-      return res.status(400).json({
-        message: `Only ${product.quantity} items available in stock`
-      });
-    }
-
     const user = await User.findById(req.userId);
 
-    const itemIndex = user.cart.findIndex(
-      item => item.product.toString() === productId
-    );
-
-    if (itemIndex === -1) {
-      return res.status(404).json({ message: 'Product not in cart' });
-    }
-
-    // Set new quantity directly
-    user.cart[itemIndex].quantity = quantity;
-
     await user.save();
-    await user.populate('cart.product');
 
-    res.json({
-      message: 'Cart updated successfully',
-      cart: user.cart
-    });
+    res.json({ message: 'Cart updated successfully', cart: user.cart });
 
   } catch (err) {
     console.error('CART UPDATE ERROR:', err);

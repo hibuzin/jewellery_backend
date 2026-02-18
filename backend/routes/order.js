@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
-const User = require('../models/user');
 const Order = require('../models/order');
+const User = require('../models/user');
 const Product = require('../models/product');
 
 router.post('/', auth, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { address, paymentMethod } = req.body;
     if (!address || !paymentMethod) {
@@ -18,55 +21,62 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cart is empty' });
     }
 
-
     const orderItems = user.cart.map(item => ({
       product: item.product._id,
       quantity: item.quantity,
       price: item.product.price
     }));
 
-
     const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+    // check stock first before reducing
     for (const item of user.cart) {
-      const product = await Product.findById(item.product._id);
+      const product = await Product.findById(item.product._id).session(session);
       if (!product) continue;
 
       if (product.quantity < item.quantity) {
+        await session.abortTransaction();
         return res.status(400).json({
-          message: `Not enough stock for ${product.title}`
+          message: `Only ${product.quantity} items available for "${product.title}". Please update your cart.`
         });
       }
 
       product.quantity -= item.quantity;
       if (product.quantity <= 0) product.isAvailable = false;
-      await product.save();
+      await product.save({ session });
     }
 
-    const order = await Order.create({
+    const [order] = await Order.create([{
       user: req.userId,
       items: orderItems,
       totalAmount,
       address,
       paymentMethod,
       status: 'pending'
-    });
+    }], { session });
 
     user.cart = [];
-    await user.save();
+    await user.save({ session });
+
+    await session.commitTransaction();
 
     await order.populate('items.product');
 
     res.status(201).json({ message: 'Order placed successfully', order });
   } catch (err) {
+    await session.abortTransaction();
     console.error('ORDER FROM CART ERROR:', err);
     res.status(500).json({ message: 'Server error' });
+  } finally {
+    session.endSession();
   }
 });
 
 router.get('/', auth, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.userId }).populate('items.product').sort({ createdAt: -1 });
+    const orders = await Order.find({ user: req.userId })
+      .populate('items.product')
+      .sort({ createdAt: -1 });
     res.json({ orders });
   } catch (err) {
     console.error('ORDER GET ERROR:', err);
