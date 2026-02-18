@@ -72,7 +72,11 @@ router.post('/add', auth, async (req, res) => {
 
 router.put('/update', auth, async (req, res) => {
   try {
-    const { quantity } = req.body;
+    const { productId, quantity } = req.body; // 👈 productId வேணும்
+
+    if (!productId) {
+      return res.status(400).json({ message: 'productId required' });
+    }
 
     if (!quantity || quantity < 1) {
       return res.status(400).json({ message: 'Valid quantity required' });
@@ -80,7 +84,18 @@ router.put('/update', auth, async (req, res) => {
 
     const user = await User.findById(req.userId);
 
+    const itemIndex = user.cart.findIndex(
+      item => item.product.toString() === productId
+    );
+
+    if (itemIndex === -1) {
+      return res.status(404).json({ message: 'Product not in cart' });
+    }
+
+    user.cart[itemIndex].quantity = quantity; // 👈 இது தான் missing ஆ இருந்தது
+
     await user.save();
+    await user.populate('cart.product'); // 👈 product details காட்ட
 
     res.json({ message: 'Cart updated successfully', cart: user.cart });
 
