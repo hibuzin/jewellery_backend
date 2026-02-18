@@ -55,6 +55,7 @@ router.post('/', auth, async (req, res) => {
       status: 'pending'
     }], { session });
 
+    user.orders.push(order._id); 
     user.cart = [];
     await user.save({ session });
 

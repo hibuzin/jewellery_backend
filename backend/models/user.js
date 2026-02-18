@@ -29,7 +29,12 @@ const userSchema = new mongoose.Schema({
         default: 1
       }
     }
-  ]
+  ],
+
+  orders: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Order'
+  }]
 
 
 
