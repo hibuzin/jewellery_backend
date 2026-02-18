@@ -1,12 +1,10 @@
-
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
-const Cart = require('../models/cart');
+const User = require('../models/user');
 const Order = require('../models/order');
 const Product = require('../models/product');
-
 
 router.post('/', auth, async (req, res) => {
   try {
@@ -15,22 +13,22 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Address and paymentMethod required' });
     }
 
-    const cart = await Cart.findOne({ user: req.userId }).populate('items.product');
-    if (!cart || cart.items.length === 0) {
+    const user = await User.findById(req.userId).populate('cart.product');
+    if (!user || user.cart.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
     }
 
-    
-    const orderItems = cart.items.map(item => ({
+
+    const orderItems = user.cart.map(item => ({
       product: item.product._id,
       quantity: item.quantity,
       price: item.product.price
     }));
 
-   
+
     const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    for (const item of cart.items) {
+    for (const item of user.cart) {
       const product = await Product.findById(item.product._id);
       if (!product) continue;
 
@@ -54,8 +52,8 @@ router.post('/', auth, async (req, res) => {
       status: 'pending'
     });
 
-    cart.items = [];
-    await cart.save();
+    user.cart = [];
+    await user.save();
 
     await order.populate('items.product');
 

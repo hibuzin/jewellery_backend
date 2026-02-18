@@ -18,10 +18,10 @@ router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name
         }
 
         if (!req.files || !req.files.mainImage) {
-        return res.status(400).json({ message: 'Main image is required' });
-      }
+            return res.status(400).json({ message: 'Main image is required' });
+        }
 
-      
+
         const categoryExists = await Category.findById(category);
         if (!categoryExists) {
             return res.status(400).json({ message: 'Invalid Category ID' });
@@ -274,108 +274,118 @@ router.get('/:id/similar', async (req, res) => {
 
 
 
-router.put(
-    '/:id',
-    auth,
-    upload.fields([
-        { name: 'mainImage', maxCount: 1 },
-        { name: 'images' }
-    ]),
-    async (req, res) => {
-        try {
-            const product = await Product.findById(req.params.id);
-            if (!product) {
-                return res.status(404).json({ message: 'Product not found' });
+router.put('/:id', auth, upload.fields([
+    { name: 'mainImage', maxCount: 1 },
+    { name: 'images' }
+]), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            title,
+            category,
+            subcategory,
+            price,
+            originalPrice,
+            gram,
+            description,
+            quantity
+        } = req.body;
+
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+        // ===== Validate Category =====
+        if (category) {
+            const categoryExists = await Category.findById(category);
+            if (!categoryExists) {
+                return res.status(400).json({ message: 'Invalid Category ID' });
             }
+            product.category = category;
+        }
 
-            const data = { ...req.body };
+        // ===== Validate Subcategory =====
+        if (subcategory) {
+            const subcategoryExists = await Subcategory.findById(subcategory);
+            if (!subcategoryExists) {
+                return res.status(400).json({ message: 'Invalid Subcategory ID' });
+            }
+            product.subcategory = subcategory;
+        }
 
-            const uploadToCloudinary = (file) =>
-                new Promise((resolve, reject) => {
-                    const stream = cloudinary.uploader.upload_stream(
-                        { folder: 'jewellery' },
-                        (error, result) => {
-                            if (result) resolve(result);
-                            else reject(error);
-                        }
-                    );
-                    streamifier.createReadStream(file.buffer).pipe(stream);
-                });
+        // ===== Update Fields =====
+        if (title) product.title = title;
+        if (price) product.price = price;
+        if (originalPrice) product.originalPrice = originalPrice;
+        if (gram) product.gram = gram;
+        if (description) product.description = description;
+        if (quantity) {
+            product.quantity = quantity;
+            product.isAvailable = quantity > 0;
+        }
 
-            // ✅ Replace Main Image (if sent)
-            if (req.files && req.files.mainImage) {
-                // delete old main image
+
+        const uploadToCloudinary = (file) =>
+            new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    { folder: 'jewellery' },
+                    (error, result) => {
+                        if (result) resolve(result);
+                        else reject(error);
+                    }
+                );
+                streamifier.createReadStream(file.buffer).pipe(stream);
+            });
+
+
+        if (req.files?.mainImage) {
+
+            
+            if (product.mainImage && product.mainImage.public_id) {
                 await cloudinary.uploader.destroy(product.mainImage.public_id);
-
-                const result = await uploadToCloudinary(
-                    req.files.mainImage[0]
-                );
-
-                data.mainImage = {
-                    public_id: result.public_id,
-                    url: result.secure_url
-                };
             }
 
-
-            if (req.files && req.files.images) {
-                const uploadPromises = req.files.images.map(file =>
-                    uploadToCloudinary(file)
-                );
-
-                const results = await Promise.all(uploadPromises);
-
-                const newImages = results.map(result => ({
-                    public_id: result.public_id,
-                    url: result.secure_url
-                }));
-
-                data.images = [...product.images, ...newImages];
-            }
-
-            const updatedProduct = await Product.findByIdAndUpdate(
-                req.params.id,
-                data,
-                { new: true }
+            const mainImageResult = await uploadToCloudinary(
+                req.files.mainImage[0]
             );
 
-            res.json(updatedProduct);
-
-        } catch (err) {
-            console.error(err);
-            res.status(500).json({ message: 'Update failed' });
-        }
-    }
-);
-
-
-
-router.delete('/:id', auth, async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.id);
-        if (!product) return res.status(404).json({ message: 'Not found' });
-
-        // delete main image
-        if (product.mainImage?.public_id) {
-            await cloudinary.uploader.destroy(product.mainImage.public_id);
+            product.mainImage = {
+                public_id: mainImageResult.public_id,
+                url: mainImageResult.secure_url
+            };
         }
 
-        // delete gallery images
-        for (let img of product.images) {
-            if (img.public_id) {
-                await cloudinary.uploader.destroy(img.public_id);
-            }
+
+        
+        if (req.files?.images) {
+            const uploadPromises = req.files.images.map(file =>
+                uploadToCloudinary(file)
+            );
+
+            const results = await Promise.all(uploadPromises);
+
+            const newImages = results.map(result => ({
+                public_id: result.public_id,
+                url: result.secure_url
+            }));
+
+            product.images.push(...newImages);
         }
 
-        await product.deleteOne();
+        await product.save();
 
-        res.json({ message: 'Jewellery deleted' });
+        res.json({
+            message: 'Product updated successfully',
+            product
+        });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Delete failed' });
+        res.status(500).json({ message: 'Server error' });
     }
 });
+
 
 
 module.exports = router;
