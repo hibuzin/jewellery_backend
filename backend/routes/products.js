@@ -260,12 +260,22 @@ router.get('/:id/similar', async (req, res) => {
             _id: { $ne: product._id },
             category: product.category,
             subcategory: product.subcategory
+
         })
 
             .select('title price mainImage category subcategory');
+             
 
+        const formattedProducts = similarProducts.map(p => ({
+            _id: p._id,
+            title: p.title,
+            price: p.price,
+            category: p.category,
+            subcategory: p.subcategory,
+            mainImage: p.mainImage?.url || null
+        }));
 
-        res.json(similarProducts);
+        res.json(formattedProducts);
     } catch (err) {
         console.error('SIMILAR PRODUCT ERROR:', err);
         res.status(500).json({ message: 'Server error' });
@@ -341,7 +351,7 @@ router.put('/:id', auth, upload.fields([
 
         if (req.files?.mainImage) {
 
-            
+
             if (product.mainImage && product.mainImage.public_id) {
                 await cloudinary.uploader.destroy(product.mainImage.public_id);
             }
@@ -357,7 +367,7 @@ router.put('/:id', auth, upload.fields([
         }
 
 
-        
+
         if (req.files?.images) {
             const uploadPromises = req.files.images.map(file =>
                 uploadToCloudinary(file)
