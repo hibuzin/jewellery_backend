@@ -19,6 +19,17 @@ router.post('/', auth, async (req, res) => {
     }
 
     const user = await User.findById(req.userId).populate('cart.product');
+
+    
+
+    // 👇 ADD THESE TWO LINES RIGHT HERE
+    console.log('USER ID:', req.userId);
+    console.log('CART LENGTH:', user?.cart?.length);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
     if (!user || user.cart.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
     }
@@ -29,7 +40,8 @@ router.post('/', auth, async (req, res) => {
       price: item.product.price
     }));
 
-    let totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    let totalAmount = orderItems.reduce((sum, item) =>
+      sum + item.price * item.quantity, 0);
 
     if (couponCode) {
       const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
