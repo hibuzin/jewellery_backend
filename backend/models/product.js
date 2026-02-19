@@ -13,6 +13,11 @@ const productSchema = new mongoose.Schema(
             required: true
         },
 
+        originalPrice: {
+            type: Number
+            
+        },
+
 
 
         category: {

@@ -74,6 +74,7 @@ router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name
             category,
             subcategory,
             price,
+            originalPrice,
             gram,
             description,
             quantity,
@@ -272,7 +273,7 @@ router.get('/:id/similar', async (req, res) => {
             price: p.price,
             category: p.category,
             subcategory: p.subcategory,
-            mainImage: p.mainImage?.url || null
+            mainImage: p.mainImage?.url|| null
         }));
 
         res.json(formattedProducts);
@@ -428,7 +429,5 @@ router.delete('/:id', auth, async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
-
-
 
 module.exports = router;

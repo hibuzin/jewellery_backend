@@ -5,13 +5,15 @@ const auth = require('../middleware/auth');
 const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
+const Coupon = require('../models/coupon');
+
 
 router.post('/', auth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { address, paymentMethod } = req.body;
+    const { address, paymentMethod, couponCode } = req.body;
     if (!address || !paymentMethod) {
       return res.status(400).json({ message: 'Address and paymentMethod required' });
     }
@@ -27,9 +29,35 @@ router.post('/', auth, async (req, res) => {
       price: item.product.price
     }));
 
-    const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    let totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    // check stock first before reducing
+    if (couponCode) {
+      const coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
+
+      if (!coupon || !coupon.isActive) {
+        return res.status(400).json({ message: "Invalid coupon" });
+      }
+
+      if (new Date() > coupon.expiryDate) {
+        return res.status(400).json({ message: "Coupon expired" });
+      }
+
+      if (totalAmount < coupon.minOrderAmount) {
+        return res.status(400).json({ message: "Minimum order not reached" });
+      }
+
+      let discount = 0;
+
+      if (coupon.discountType === 'percentage') {
+        discount = (totalAmount * coupon.discountValue) / 100;
+      } else {
+        discount = coupon.discountValue;
+      }
+
+      totalAmount -= discount;
+    }
+
+
     for (const item of user.cart) {
       const product = await Product.findById(item.product._id).session(session);
       if (!product) continue;
@@ -55,7 +83,7 @@ router.post('/', auth, async (req, res) => {
       status: 'pending'
     }], { session });
 
-    user.orders.push(order._id); 
+    user.orders.push(order._id);
     user.cart = [];
     await user.save({ session });
 
