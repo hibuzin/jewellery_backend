@@ -396,6 +396,39 @@ router.put('/:id', auth, upload.fields([
     }
 });
 
+router.delete('/:id', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const product = await Product.findById(id);
+        if (!product) {
+            return res.status(404).json({ message: 'Product not found' });
+        }
+
+       
+        if (product.mainImage?.public_id) {
+            await cloudinary.uploader.destroy(product.mainImage.public_id);
+        }
+
+        
+        if (product.images && product.images.length > 0) {
+            const deletePromises = product.images.map(img =>
+                cloudinary.uploader.destroy(img.public_id)
+            );
+            await Promise.all(deletePromises);
+        }
+
+        
+        await Product.findByIdAndDelete(id);
+
+        res.json({ message: 'Product deleted successfully' });
+
+    } catch (err) {
+        console.error('DELETE PRODUCT ERROR:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 
 
 module.exports = router;
