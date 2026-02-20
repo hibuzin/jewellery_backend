@@ -36,6 +36,7 @@ app.use('/api/checkout', checkoutRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/coupon', couponRoutes);
 
+
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://arshath:tokyodel9600@cluster0.v87mhyy.mongodb.net/';
 
 mongoose.connect(MONGO_URI)
