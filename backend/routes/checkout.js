@@ -21,11 +21,6 @@ router.post('/', auth, async (req, res) => {
     const user = await User.findById(req.userId).populate('cart.product');
 
 
-
-    // 👇 ADD THESE TWO LINES RIGHT HERE
-    console.log('USER ID:', req.userId);
-    console.log('CART LENGTH:', user?.cart?.length);
-
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
