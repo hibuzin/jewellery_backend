@@ -3,8 +3,33 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const app = express();
+const http = require('http');           
+const { Server } = require('socket.io'); 
+
+
 app.use(express.json());
 app.use(cors());
+
+
+const server = http.createServer(app);  
+
+
+const io = new Server(server, {
+    cors: {
+        origin: 'https://react-jewellery.onrender.com', 
+        methods: ['GET', 'POST', 'PUT', 'DELETE']
+    }
+});
+
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+    console.log('Client connected:', socket.id);
+    socket.on('disconnect', () => {
+        console.log('Client disconnected:', socket.id);
+    });
+});
 
 
 const authRoutes = require('./routes/auth');

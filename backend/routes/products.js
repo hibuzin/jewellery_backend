@@ -86,6 +86,9 @@ router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name
             images
         });
 
+        const io = req.app.get('io');
+        io.emit('newProduct', product);
+
         res.status(201).json({
             message: 'Jewellery added successfully',
             product
@@ -265,7 +268,7 @@ router.get('/:id/similar', async (req, res) => {
         })
 
             .select('title price mainImage category subcategory');
-             
+
 
         const formattedProducts = similarProducts.map(p => ({
             _id: p._id,
@@ -273,7 +276,7 @@ router.get('/:id/similar', async (req, res) => {
             price: p.price,
             category: p.category,
             subcategory: p.subcategory,
-            mainImage: p.mainImage?.url|| null
+            mainImage: p.mainImage?.url || null
         }));
 
         res.json(formattedProducts);
@@ -386,6 +389,16 @@ router.put('/:id', auth, upload.fields([
 
         await product.save();
 
+        const io = req.app.get('io');
+        io.emit('productUpdated', {
+            productId: product._id,
+            title: product.title,
+            price: product.price,
+            quantity: product.quantity,
+            isAvailable: product.isAvailable,
+            mainImage: product.mainImage
+        });
+
         res.json({
             message: 'Product updated successfully',
             product
@@ -406,12 +419,12 @@ router.delete('/:id', auth, async (req, res) => {
             return res.status(404).json({ message: 'Product not found' });
         }
 
-       
+
         if (product.mainImage?.public_id) {
             await cloudinary.uploader.destroy(product.mainImage.public_id);
         }
 
-        
+
         if (product.images && product.images.length > 0) {
             const deletePromises = product.images.map(img =>
                 cloudinary.uploader.destroy(img.public_id)
@@ -419,7 +432,7 @@ router.delete('/:id', auth, async (req, res) => {
             await Promise.all(deletePromises);
         }
 
-        
+
         await Product.findByIdAndDelete(id);
 
         res.json({ message: 'Product deleted successfully' });
