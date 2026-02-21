@@ -165,6 +165,62 @@ router.get('/:id/exactprice', async (req, res) => {
 });
 
 
+router.get('/search', async (req, res) => {
+    try {
+        const {
+            keyword,
+            category,
+            minPrice,
+            maxPrice,
+            metal,
+            page = 1,
+            limit = 10
+        } = req.query;
+
+        let filter = {};
+
+        // 🔍 Search by name
+        if (keyword) {
+            filter.title = { $regex: keyword, $options: 'i' }; // case-insensitive
+        }
+
+        // 📂 Filter by category
+        if (category) {
+            filter.category = category;
+        }
+
+        // 💰 Filter by price range
+        if (minPrice || maxPrice) {
+            filter.price = {};
+            if (minPrice) filter.price.$gte = Number(minPrice);
+            if (maxPrice) filter.price.$lte = Number(maxPrice);
+        }
+
+        // 🟡 Filter by metal type
+        if (metal) {
+            filter.metal = metal;
+        }
+
+        const products = await Product.find(filter)
+            .populate('category')
+            .skip((page - 1) * limit)
+            .limit(Number(limit));
+
+        const total = await Product.countDocuments(filter);
+
+        res.json({
+            total,
+            page: Number(page),
+            totalPages: Math.ceil(total / limit),
+            products
+        });
+
+    } catch (error) {
+        console.error("SEARCH ERROR:", error);
+        res.status(500).json({ message: "Server Error" });
+    }
+});
+
 
 router.get('/category/:categoryId', async (req, res) => {
     try {
