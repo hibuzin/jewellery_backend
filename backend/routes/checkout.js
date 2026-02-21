@@ -18,6 +18,12 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Address and paymentMethod required' });
     }
 
+    const { name, phone, street, city, state, pincode } = address;
+
+    if (!name || !phone || !street || !city || !state || !pincode) {
+      return res.status(400).json({ message: 'All address fields (name, phone, street, city, state, pincode) are required.' });
+    }
+
     const user = await User.findById(req.userId).populate('cart.product');
 
 

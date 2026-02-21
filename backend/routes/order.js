@@ -26,8 +26,13 @@ router.post('/buy-now', auth, async (req, res) => {
       return res.status(400).json({ message: 'quantity must be a positive integer.' });
     }
 
+    const { name, phone, street, city, state, pincode } = address;
 
-    const user = await User.findById(req.userId).session(session);
+    if (!name || !phone || !street || !city || !state || !pincode) {
+      return res.status(400).json({ message: 'All address fields (name, phone, street, city, state, pincode) are required.' });
+    }
+
+    const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
