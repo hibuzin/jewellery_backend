@@ -16,7 +16,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: 'https://react-jewellery.onrender.com', 
+        origin: 'https://jewellery-backend-icja.onrender.com', 
         methods: ['GET', 'POST', 'PUT', 'DELETE']
     }
 });
