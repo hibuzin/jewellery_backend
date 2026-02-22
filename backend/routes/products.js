@@ -179,24 +179,24 @@ router.get('/search', async (req, res) => {
 
         let filter = {};
 
-        // 🔍 Search by name
+        
         if (keyword) {
-            filter.title = { $regex: keyword, $options: 'i' }; // case-insensitive
+            filter.title = { $regex: keyword, $options: 'i' };
         }
 
-        // 📂 Filter by category
+        
         if (category) {
             filter.category = category;
         }
 
-        // 💰 Filter by price range
+        
         if (minPrice || maxPrice) {
             filter.price = {};
             if (minPrice) filter.price.$gte = Number(minPrice);
             if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
 
-        // 🟡 Filter by metal type
+        
         if (metal) {
             filter.metal = metal;
         }
@@ -366,7 +366,7 @@ router.put('/:id', auth, upload.fields([
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        // ===== Validate Category =====
+        
         if (category) {
             const categoryExists = await Category.findById(category);
             if (!categoryExists) {
@@ -375,7 +375,6 @@ router.put('/:id', auth, upload.fields([
             product.category = category;
         }
 
-        // ===== Validate Subcategory =====
         if (subcategory) {
             const subcategoryExists = await Subcategory.findById(subcategory);
             if (!subcategoryExists) {
@@ -384,7 +383,7 @@ router.put('/:id', auth, upload.fields([
             product.subcategory = subcategory;
         }
 
-        // ===== Update Fields =====
+        
         if (title) product.title = title;
         if (price) product.price = price;
         if (originalPrice) product.originalPrice = originalPrice;
