@@ -28,7 +28,7 @@ router.post('/create-checkout-session', auth, async (req, res) => {
             ],
             // Pass userId so webhook can identify who paid
             metadata: {
-                userId: req.user.id,
+                userId: req.userId,
             },
             success_url: 'https://jewellery-backend-icja.onrender.com/success',
             cancel_url: 'https://jewellery-backend-icja.onrender.com/cancel',
