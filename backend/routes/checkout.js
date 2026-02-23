@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
-const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
 const Coupon = require('../models/coupon');
