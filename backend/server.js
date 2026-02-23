@@ -3,20 +3,20 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const app = express();
-const http = require('http');           
-const { Server } = require('socket.io'); 
+const http = require('http');
+const { Server } = require('socket.io');
 
 
 app.use(express.json());
 app.use(cors());
 
 
-const server = http.createServer(app);  
+const server = http.createServer(app);
 
 
 const io = new Server(server, {
     cors: {
-        origin: 'https://jewellery-backend-icja.onrender.com', 
+        origin: 'https://jewellery-backend-icja.onrender.com',
         methods: ['GET', 'POST', 'PUT', 'DELETE']
     }
 });
