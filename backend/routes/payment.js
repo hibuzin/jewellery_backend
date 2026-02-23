@@ -1,15 +1,14 @@
 const express = require('express');
 const Stripe = require('stripe');
-const auth = require('../middleware/auth');  
-const Cart = require('../models/cart'); 
+const auth = require('../middleware/auth');
+const Cart = require('../models/cart');
 
 const router = express.Router();
-
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 router.post('/create-checkout-session', auth, async (req, res) => {
     try {
-        const { amount, cartItems } = req.body;  // also receive cartItems
+        const { amount } = req.body;
 
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
@@ -26,7 +25,6 @@ router.post('/create-checkout-session', auth, async (req, res) => {
                     quantity: 1,
                 },
             ],
-            // Pass userId so webhook can identify who paid
             metadata: {
                 userId: req.userId,
             },
@@ -42,9 +40,7 @@ router.post('/create-checkout-session', auth, async (req, res) => {
     }
 });
 
-
-// Stripe Webhook - clears cart and creates order after payment
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
 
@@ -52,7 +48,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         event = stripe.webhooks.constructEvent(
             req.body,
             sig,
-            process.env.STRIPE_WEBHOOK_SECRET  // add this to your .env
+            process.env.STRIPE_WEBHOOK_SECRET
         );
     } catch (err) {
         console.error('Webhook signature failed:', err.message);
@@ -64,20 +60,11 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         const userId = session.metadata.userId;
 
         try {
-            // 1. Clear the user's cart
+            
             await Cart.findOneAndDelete({ user: userId });
-
-            // 2. Optionally create an order record
-            await Order.create({
-                user: userId,
-                amount: session.amount_total,
-                paymentId: session.payment_intent,
-                status: 'paid',
-            });
-
-            console.log(`Cart cleared and order created for user: ${userId}`);
+            console.log(`Cart cleared for user: ${userId}`);
         } catch (err) {
-            console.error('Error clearing cart/creating order:', err);
+            console.error('Error clearing cart:', err);
         }
     }
 
@@ -85,4 +72,3 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 });
 
 module.exports = router;
-
