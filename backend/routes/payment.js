@@ -1,7 +1,7 @@
 const express = require('express');
 const Stripe = require('stripe');
 const auth = require('../middleware/auth');
-const Cart = require('../models/cart');
+const User = require('../models/user');
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -61,7 +61,7 @@ router.post('/webhook', async (req, res) => {
 
         try {
             
-            await Cart.findOneAndDelete({ user: userId });
+            await User.findByIdAndUpdate(userId, { cart: [] });
             console.log(`Cart cleared for user: ${userId}`);
         } catch (err) {
             console.error('Error clearing cart:', err);
