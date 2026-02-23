@@ -1,7 +1,7 @@
 const express = require('express');
 const Stripe = require('stripe');
 const auth = require('../middleware/auth');  
-const Cart = require('../models/Cart'); 
+const Cart = require('../models/cart'); 
 
 const router = express.Router();
 
