@@ -21,10 +21,9 @@ router.get("/total", async (req, res) => {
         // --- This Month ---
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        // Exclude only cancelled orders
-        const validStatuses = { status: { $nin: ["cancelled"] } };
+        const validStatuses = { status: "delivered" };
 
-        const [todayResult, weekResult, monthResult] = await Promise.all([
+        const [todayResult, weekResult, monthResult, totalResult] = await Promise.all([
             Order.aggregate([
                 { $match: { createdAt: { $gte: startOfToday }, ...validStatuses } },
                 { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
@@ -42,6 +41,10 @@ router.get("/total", async (req, res) => {
         res.json({
             success: true,
             data: {
+                total: {
+                    total: totalResult[0]?.total || 0,
+                    orders: totalResult[0]?.count || 0,
+                },
                 today: {
                     total: todayResult[0]?.total || 0,
                     orders: todayResult[0]?.count || 0,
