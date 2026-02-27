@@ -10,20 +10,27 @@ const orderSchema = new mongoose.Schema({
         }
     ],
     totalAmount: { type: Number, required: true },
-   address: {
-  name: { type: String },
-  phone: { type: String },
-  street: { type: String },
-  city: { type: String },
-  state: { type: String },
-  pincode: { type: String }
-},
+    address: {
+        name: { type: String },
+        phone: { type: String },
+        street: { type: String },
+        city: { type: String },
+        state: { type: String },
+        pincode: { type: String }
+    },
     paymentMethod: { type: String, required: true },
     status: {
         type: String,
         enum: ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'return requested', 'return accepted'],
         default: 'pending'
     },
+
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'paid', 'failed'],
+        default: 'pending'
+    },
+    
     return: {
         isRequested: { type: Boolean, default: false },
         reason: { type: String },
