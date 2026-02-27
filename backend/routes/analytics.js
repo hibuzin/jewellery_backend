@@ -1,41 +1,53 @@
 const express = require("express");
 const router = express.Router();
-const Order = require("../models/order"); // adjust if your file is Order.js or orders.js
+const Order = require("../models/order");
 
-/**
- * GET /api/sales/total
- * Returns total sales for today, this week, and this month
- */
 router.get("/total", async (req, res) => {
     try {
         const now = new Date();
 
-        // --- Today ---
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-        // --- This Week (Monday as start) ---
-        const dayOfWeek = now.getDay(); // 0 = Sunday
+        const dayOfWeek = now.getDay();
         const diffToMonday = (dayOfWeek + 6) % 7;
         const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diffToMonday);
 
-        // --- This Month ---
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-        const validStatuses = { status: "delivered" };
+        const validMatch = {
+            status: "delivered"
+        };
 
-        const [todayResult, weekResult, monthResult, totalResult] = await Promise.all([
+        const [
+            todayResult,
+            weekResult,
+            monthResult,
+            totalResult
+        ] = await Promise.all([
+
+            // Today
             Order.aggregate([
-                { $match: { createdAt: { $gte: startOfToday }, ...validStatuses } },
+                { $match: { createdAt: { $gte: startOfToday }, ...validMatch } },
                 { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
             ]),
+
+            // Week
             Order.aggregate([
-                { $match: { createdAt: { $gte: startOfWeek }, ...validStatuses } },
+                { $match: { createdAt: { $gte: startOfWeek }, ...validMatch } },
                 { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
             ]),
+
+            // Month
             Order.aggregate([
-                { $match: { createdAt: { $gte: startOfMonth }, ...validStatuses } },
+                { $match: { createdAt: { $gte: startOfMonth }, ...validMatch } },
                 { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
             ]),
+
+            // Total (All time)
+            Order.aggregate([
+                { $match: validMatch },
+                { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
+            ])
         ]);
 
         res.json({
@@ -48,23 +60,21 @@ router.get("/total", async (req, res) => {
                 today: {
                     total: todayResult[0]?.total || 0,
                     orders: todayResult[0]?.count || 0,
-                    from: startOfToday,
                 },
                 week: {
                     total: weekResult[0]?.total || 0,
                     orders: weekResult[0]?.count || 0,
-                    from: startOfWeek,
                 },
                 month: {
                     total: monthResult[0]?.total || 0,
                     orders: monthResult[0]?.count || 0,
-                    from: startOfMonth,
                 },
             },
         });
+
     } catch (error) {
         console.error("Sales total error:", error);
-        res.status(500).json({ success: false, message: "Server error", error: error.message });
+        res.status(500).json({ success: false, message: "Server error" });
     }
 });
 
