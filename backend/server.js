@@ -45,6 +45,7 @@ const checkoutRoutes = require('./routes/checkout');
 const paymentRoutes = require('./routes/payment');
 const couponRoutes = require('./routes/coupon');
 const analyticsRoutes = require('./routes/analytics');
+const salesRoutes = require('./routes/sales');
 
 
 
@@ -62,6 +63,7 @@ app.use('/api/checkout', checkoutRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/coupon', couponRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/sales', salesRoutes);
 
 
 
