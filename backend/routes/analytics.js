@@ -14,6 +14,8 @@ router.get("/total", async (req, res) => {
 
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+
         const validMatch = {
             status: "delivered"
         };
@@ -22,6 +24,7 @@ router.get("/total", async (req, res) => {
             todayResult,
             weekResult,
             monthResult,
+            yearResult,
             totalResult
         ] = await Promise.all([
 
@@ -43,6 +46,11 @@ router.get("/total", async (req, res) => {
                 { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } },
             ]),
 
+            Order.aggregate([
+                { $match: { createdAt: { $gte: startOfYear }, ...validMatch } },
+                { $group: { _id: null, total: { $sum: "$totalAmount" }, count: { $sum: 1 } } }
+            ]),
+           
             // Total (All time)
             Order.aggregate([
                 { $match: validMatch },
@@ -69,6 +77,9 @@ router.get("/total", async (req, res) => {
                     total: monthResult[0]?.total || 0,
                     orders: monthResult[0]?.count || 0,
                 },
+                 year:  { 
+                    total: yearResult[0]?.total  || 0,
+                     orders: yearResult[0]?.count  || 0 },
             },
         });
 
