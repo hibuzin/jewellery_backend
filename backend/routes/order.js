@@ -8,6 +8,89 @@ const Product = require('../models/product');
 const Coupon = require('../models/coupon');
 
 
+function buildOrderFilter(userId, query) {
+  const filter = { user: userId };
+
+  const {
+    status,
+    startDate,
+    endDate,
+    minAmount,
+    maxAmount
+  } = query;
+
+  // ✅ Status filter
+  if (status) {
+    const allowedStatus = [
+      'pending',
+      'confirmed',
+      'shipped',
+      'delivered',
+      'cancelled'
+    ];
+
+    if (!allowedStatus.includes(status.toLowerCase())) {
+      return { error: 'Invalid status value' };
+    }
+
+    filter.status = status.toLowerCase();
+  }
+
+  // ✅ Date range filter
+  if (startDate || endDate) {
+    filter.createdAt = {};
+
+    if (startDate) {
+      filter.createdAt.$gte = new Date(startDate);
+    }
+
+    if (endDate) {
+      filter.createdAt.$lte = new Date(endDate);
+    }
+  }
+
+  // ✅ Amount range filter
+  if (minAmount || maxAmount) {
+    filter.totalAmount = {};
+
+    if (minAmount) {
+      filter.totalAmount.$gte = Number(minAmount);
+    }
+
+    if (maxAmount) {
+      filter.totalAmount.$lte = Number(maxAmount);
+    }
+  }
+
+  return { filter };
+}
+
+
+
+/* =====================================================
+   🔹 HELPER: Build Sort Option
+===================================================== */
+function buildSortOption(query) {
+  const { sortBy, order } = query;
+
+  const allowedFields = ['createdAt', 'totalAmount', 'status'];
+
+  if (!sortBy) {
+    return { sort: { createdAt: -1 } }; // Default newest first
+  }
+
+  if (!allowedFields.includes(sortBy)) {
+    return { error: 'Invalid sort field' };
+  }
+
+  const sortOrder = order === 'asc' ? 1 : -1;
+
+  return {
+    sort: { [sortBy]: sortOrder }
+  };
+}
+
+
 router.post('/buy-now', auth, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -130,24 +213,52 @@ router.post('/buy-now', auth, async (req, res) => {
 
 router.get('/', auth, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.userId })
+    const { filter, error: filterError } =
+      buildOrderFilter(req.userId, req.query);
+    if (filterError) return res.status(400).json({ message: filterError });
+
+    const { sort, error: sortError } =
+      buildSortOption(req.query);
+    if (sortError) return res.status(400).json({ message: sortError });
+
+    // ✅ Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await Order.countDocuments(filter);
+
+    const orders = await Order.find(filter)
       .populate('items.product')
-      .sort({ createdAt: -1 });
-    res.json({ orders });
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      totalOrders: total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      orders
+    });
+
   } catch (err) {
     console.error('ORDER GET ERROR:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 router.get('/my-orders', auth, async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.userId })
+    const { filter, error: filterError } = buildOrderFilter(req.userId, req.query);
+    if (filterError) return res.status(400).json({ message: filterError });
+
+    const { sort, error: sortError } = buildSortOption(req.query);
+    if (sortError) return res.status(400).json({ message: sortError });
+
+    const orders = await Order.find(filter)
       .populate('items.product')
-      .sort({ createdAt: -1 });
+      .sort(sort);
 
-
-    res.json({ orders });
+    res.json({ total: orders.length, orders });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load orders' });
   }
