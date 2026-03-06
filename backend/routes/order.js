@@ -11,6 +11,8 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 
+const LOW_STOCK_LIMIT = 5;
+
 
 function buildOrderFilter(userId, query) {
   const filter = { user: userId };
@@ -175,10 +177,10 @@ router.post('/buy-now', auth, async (req, res) => {
     if (product.quantity <= 0) product.isAvailable = false;
     await product.save({ session });
 
-    //low stock 
+    /// low stock check
     const io = req.app.get('io');
 
-    if (product.quantity <= 5) {
+    if (product.quantity <= LOW_STOCK_LIMIT) {
       io.emit('lowStock', {
         productId: product._id,
         title: product.title,

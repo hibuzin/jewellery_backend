@@ -36,7 +36,7 @@ router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name
             return res.status(400).json({ message: 'Main image is required' });
         }
 
-        
+
 
 
         const categoryExists = await Category.findById(category);
@@ -184,6 +184,25 @@ router.get('/:id/exactprice', async (req, res) => {
 });
 
 
+router.get('/low-stock', auth, async (req, res) => {
+    try {
+
+        const products = await Product.find({
+            quantity: { $lte: LOW_STOCK_LIMIT }
+        });
+
+        res.json({
+            count: products.length,
+            products
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+
 router.get('/search', async (req, res) => {
     try {
         const {
@@ -198,24 +217,24 @@ router.get('/search', async (req, res) => {
 
         let filter = {};
 
-        
+
         if (keyword) {
             filter.title = { $regex: keyword, $options: 'i' };
         }
 
-        
+
         if (category) {
             filter.category = category;
         }
 
-        
+
         if (minPrice || maxPrice) {
             filter.price = {};
             if (minPrice) filter.price.$gte = Number(minPrice);
             if (maxPrice) filter.price.$lte = Number(maxPrice);
         }
 
-        
+
         if (metal) {
             filter.metal = metal;
         }
@@ -385,7 +404,7 @@ router.put('/:id', auth, upload.fields([
             return res.status(404).json({ message: 'Product not found' });
         }
 
-        
+
         if (category) {
             const categoryExists = await Category.findById(category);
             if (!categoryExists) {
@@ -402,7 +421,7 @@ router.put('/:id', auth, upload.fields([
             product.subcategory = subcategory;
         }
 
-        
+
         if (title) product.title = title;
         if (price) product.price = price;
         if (originalPrice) product.originalPrice = originalPrice;
