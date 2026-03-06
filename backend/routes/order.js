@@ -6,6 +6,10 @@ const Order = require('../models/order');
 const User = require('../models/user');
 const Product = require('../models/product');
 const Coupon = require('../models/coupon');
+const { Parser } = require('json2csv');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 
 function buildOrderFilter(userId, query) {
@@ -67,16 +71,14 @@ function buildOrderFilter(userId, query) {
 
 
 
-/* =====================================================
-   🔹 HELPER: Build Sort Option
-===================================================== */
+
 function buildSortOption(query) {
   const { sortBy, order } = query;
 
   const allowedFields = ['createdAt', 'totalAmount', 'status'];
 
   if (!sortBy) {
-    return { sort: { createdAt: -1 } }; // Default newest first
+    return { sort: { createdAt: -1 } };
   }
 
   if (!allowedFields.includes(sortBy)) {
@@ -173,6 +175,18 @@ router.post('/buy-now', auth, async (req, res) => {
     if (product.quantity <= 0) product.isAvailable = false;
     await product.save({ session });
 
+    //low stock 
+    const io = req.app.get('io');
+
+    if (product.quantity <= 5) {
+      io.emit('lowStock', {
+        productId: product._id,
+        title: product.title,
+        quantity: product.quantity,
+        message: `Low stock alert: ${product.title} only ${product.quantity} left`
+      });
+    }
+
     // --- Create Order ---
     const [order] = await Order.create([{
       user: req.userId,
@@ -209,6 +223,125 @@ router.post('/buy-now', auth, async (req, res) => {
     session.endSession();
   }
 });
+
+
+router.get('/export', auth, async (req, res) => {
+  try {
+    const { status, startDate, endDate } = req.query;
+
+    let filter = {};
+
+    // ✅ Filter by status
+    if (status) {
+      filter.status = status;
+    }
+
+    // ✅ Filter by date range
+    if (startDate && endDate) {
+      filter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const orders = await Order.find(filter)
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+
+    const formattedOrders = orders.map(order => ({
+      OrderID: order._id,
+      CustomerName: order.user?.name,
+      CustomerEmail: order.user?.email,
+      TotalAmount: order.totalAmount,
+      Status: order.status,
+      PaymentMethod: order.paymentMethod,
+      CreatedAt: order.createdAt
+    }));
+
+    res.status(200).json({
+      count: formattedOrders.length,
+      orders: formattedOrders
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to export orders' });
+  }
+});
+
+
+router.get('/export/pdf/save', auth, async (req, res) => {
+  try {
+    const { status, startDate, endDate } = req.query;
+
+    let filter = {};
+
+    if (status) filter.status = status;
+
+    if (startDate && endDate) {
+      filter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+
+    const orders = await Order.find(filter)
+      .populate('user', 'name email')
+      .sort({ createdAt: -1 });
+
+    if (!orders.length) {
+      return res.status(404).json({ message: 'No orders found' });
+    }
+
+    // ✅ Create exports folder if not exists
+    const exportDir = path.join(__dirname, '../exports');
+    if (!fs.existsSync(exportDir)) {
+      fs.mkdirSync(exportDir);
+    }
+
+    // ✅ Create unique filename
+    const fileName = `orders-${Date.now()}.pdf`;
+    const filePath = path.join(exportDir, fileName);
+
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+
+    const stream = fs.createWriteStream(filePath);
+    doc.pipe(stream);
+
+    // ✅ PDF Content
+    doc.fontSize(18).text('Order Report', { align: 'center' });
+    doc.moveDown();
+
+    orders.forEach((order, index) => {
+      doc
+        .fontSize(12)
+        .text(`Order #${index + 1}`)
+        .text(`Order ID: ${order._id}`)
+        .text(`Customer: ${order.user?.name}`)
+        .text(`Email: ${order.user?.email}`)
+        .text(`Total Amount: ${order.totalAmount}`)
+        .text(`Status: ${order.status}`)
+        .text(`Payment: ${order.paymentMethod}`)
+        .text(`Date: ${order.createdAt}`)
+        .moveDown();
+    });
+
+    doc.end();
+
+    stream.on('finish', () => {
+      res.status(200).json({
+        message: 'PDF saved successfully',
+        fileName: fileName,
+        filePath: filePath
+      });
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to save PDF' });
+  }
+});
+
 
 
 router.get('/', auth, async (req, res) => {

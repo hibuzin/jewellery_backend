@@ -6,8 +6,23 @@ const auth = require('../middleware/auth');
 const Subcategory = require('../models/subcategory');
 const Category = require('../models/category');
 const streamifier = require('streamifier');
+const LOW_STOCK_LIMIT = 5;
+
 
 const router = express.Router();
+
+
+const checkLowStock = (product, io) => {
+    if (product.quantity <= LOW_STOCK_LIMIT) {
+        io.emit('lowStock', {
+            productId: product._id,
+            title: product.title,
+            quantity: product.quantity,
+            message: `Low stock alert: ${product.title} only ${product.quantity} left`
+        });
+    }
+};
+
 
 router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name: 'images' }]), async (req, res) => {
     try {
@@ -20,6 +35,8 @@ router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name
         if (!req.files || !req.files.mainImage) {
             return res.status(400).json({ message: 'Main image is required' });
         }
+
+        
 
 
         const categoryExists = await Category.findById(category);
@@ -88,6 +105,8 @@ router.post('/', auth, upload.fields([{ name: 'mainImage', maxCount: 1 }, { name
 
         const io = req.app.get('io');
         io.emit('newProduct', product);
+        //low stock
+        checkLowStock(product, io);
 
         res.status(201).json({
             message: 'Jewellery added successfully',
