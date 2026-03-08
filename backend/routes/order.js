@@ -434,6 +434,8 @@ router.put('/:orderId/status', auth, async (req, res) => {
       'return accepted'
     ];
 
+    
+
     if (!allowedStatus.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
