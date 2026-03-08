@@ -189,7 +189,7 @@ router.post('/buy-now', auth, async (req, res) => {
       });
     }
 
-    // --- Create Order ---
+
     const [order] = await Order.create([{
       user: req.userId,
       items: [{
@@ -203,7 +203,7 @@ router.post('/buy-now', auth, async (req, res) => {
       status: 'pending'
     }], { session });
 
-    // --- Save Order Inside User ---
+
     user.orders.push(order._id);
     await user.save({ session });
 
@@ -233,12 +233,12 @@ router.get('/export', auth, async (req, res) => {
 
     let filter = {};
 
-    // ✅ Filter by status
+
     if (status) {
       filter.status = status;
     }
 
-    // ✅ Filter by date range
+
     if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate),
@@ -277,9 +277,7 @@ router.get('/export/pdf/save', auth, async (req, res) => {
     const { status, startDate, endDate } = req.query;
 
     let filter = {};
-
     if (status) filter.status = status;
-
     if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate),
@@ -295,22 +293,17 @@ router.get('/export/pdf/save', auth, async (req, res) => {
       return res.status(404).json({ message: 'No orders found' });
     }
 
-    // ✅ Create exports folder if not exists
-    const exportDir = path.join(__dirname, '../exports');
-    if (!fs.existsSync(exportDir)) {
-      fs.mkdirSync(exportDir);
-    }
-
-    // ✅ Create unique filename
     const fileName = `orders-${Date.now()}.pdf`;
-    const filePath = path.join(exportDir, fileName);
+
+    // Set headers so browser downloads the file
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
 
     const doc = new PDFDocument({ margin: 30, size: 'A4' });
 
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    // Pipe directly to response — no disk involved
+    doc.pipe(res);
 
-    // ✅ PDF Content
     doc.fontSize(18).text('Order Report', { align: 'center' });
     doc.moveDown();
 
@@ -330,17 +323,9 @@ router.get('/export/pdf/save', auth, async (req, res) => {
 
     doc.end();
 
-    stream.on('finish', () => {
-      res.status(200).json({
-        message: 'PDF saved successfully',
-        fileName: fileName,
-        filePath: filePath
-      });
-    });
-
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Failed to save PDF' });
+    res.status(500).json({ message: 'Failed to generate PDF' });
   }
 });
 
@@ -356,7 +341,7 @@ router.get('/', auth, async (req, res) => {
       buildSortOption(req.query);
     if (sortError) return res.status(400).json({ message: sortError });
 
-    // ✅ Pagination
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
@@ -434,7 +419,7 @@ router.put('/:orderId/status', auth, async (req, res) => {
       'return accepted'
     ];
 
-    
+
 
     if (!allowedStatus.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
