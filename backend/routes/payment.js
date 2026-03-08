@@ -72,24 +72,27 @@ router.post('/webhook', async (req, res) => {
 });
 
 
-router.post('/manual-payment', auth, async (req, res) => {
+router.post('/manual-credit', async (req, res) => {
     try {
 
-        const userId = req.userId;
+        const { userId } = req.body;
 
-        // clear cart manually after payment confirmation
+        if (!userId) {
+            return res.status(400).json({ message: "UserId required" });
+        }
+
+        // clear cart after payment credited
         await User.findByIdAndUpdate(userId, { cart: [] });
 
         res.json({
             success: true,
-            message: "Manual payment confirmed. Cart cleared."
+            message: "Payment manually credited. Cart cleared."
         });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Manual payment failed" });
+        res.status(500).json({ message: "Manual credit failed" });
     }
 });
-
 
 module.exports = router;
