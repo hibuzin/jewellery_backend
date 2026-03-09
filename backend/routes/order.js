@@ -277,7 +277,13 @@ router.get('/export/pdf/save', auth, async (req, res) => {
     const { status, startDate, endDate } = req.query;
 
     let filter = {};
-    if (status) filter.status = status;
+
+    
+    if (status) {
+      filter.status = status;
+    }
+
+   
     if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate),
@@ -295,40 +301,50 @@ router.get('/export/pdf/save', auth, async (req, res) => {
 
     const fileName = `orders-${Date.now()}.pdf`;
 
-    // Set headers so browser downloads the file
+   
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${fileName}"`
+    );
 
-    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    const doc = new PDFDocument({
+      margin: 40,
+      size: 'A4'
+    });
 
-    // Pipe directly to response — no disk involved
+   
     doc.pipe(res);
 
-    doc.fontSize(18).text('Order Report', { align: 'center' });
+    doc
+      .fontSize(20)
+      .text('Order Report', { align: 'center' });
+
     doc.moveDown();
 
+    
     orders.forEach((order, index) => {
       doc
         .fontSize(12)
         .text(`Order #${index + 1}`)
         .text(`Order ID: ${order._id}`)
-        .text(`Customer: ${order.user?.name}`)
-        .text(`Email: ${order.user?.email}`)
-        .text(`Total Amount: ${order.totalAmount}`)
+        .text(`Customer: ${order.user?.name || 'N/A'}`)
+        .text(`Email: ${order.user?.email || 'N/A'}`)
+        .text(`Total Amount: ₹${order.totalAmount}`)
         .text(`Status: ${order.status}`)
         .text(`Payment: ${order.paymentMethod}`)
-        .text(`Date: ${order.createdAt}`)
+        .text(`Date: ${new Date(order.createdAt).toDateString()}`)
         .moveDown();
     });
 
+    
     doc.end();
 
   } catch (error) {
-    console.error(error);
+    console.error('PDF Export Error:', error);
     res.status(500).json({ message: 'Failed to generate PDF' });
   }
 });
-
 
 
 router.get('/', auth, async (req, res) => {
