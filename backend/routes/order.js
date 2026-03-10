@@ -306,7 +306,7 @@ router.get('/receipt/:orderId', auth, async (req, res) => {
 
     doc.moveDown();
 
-    doc.fontSize(16).text(`Total Amount: ₹${order.totalAmount}`);
+    doc.fontSize(16).text(`Total Amount: Rs. ${order.totalAmount}`);
 
     doc.end();
 
