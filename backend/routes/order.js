@@ -297,7 +297,7 @@ router.get('/receipt/:orderId', auth, async (req, res) => {
       );
 
       doc.text(
-        `Quantity: ${item.quantity}   Price: ₹${item.price}`
+        `Quantity: ${item.quantity}   Price: Rs. ${item.price}`
       );
 
       doc.moveDown(0.5);
