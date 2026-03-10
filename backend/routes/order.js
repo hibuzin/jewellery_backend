@@ -227,6 +227,106 @@ router.post('/buy-now', auth, async (req, res) => {
 });
 
 
+router.get('/receipt/:orderId', auth, async (req, res) => {
+  try {
+
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId)
+      .populate('user', 'name email')
+      .populate('items.product', 'title');
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const fileName = `receipt-${order._id}.pdf`;
+
+    const receiptDir = path.join(__dirname, '../receipts');
+
+    if (!fs.existsSync(receiptDir)) {
+      fs.mkdirSync(receiptDir, { recursive: true });
+    }
+
+    const filePath = path.join(receiptDir, fileName);
+
+    const doc = new PDFDocument({ margin: 40 });
+
+    const fileStream = fs.createWriteStream(filePath);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+    doc.pipe(fileStream);
+    doc.pipe(res);
+
+    // Title
+    doc.fontSize(22).text('Order Receipt', { align: 'center' });
+    doc.moveDown();
+
+    // Customer
+    doc.fontSize(12);
+    doc.text(`Order ID: ${order._id}`);
+    doc.text(`Customer: ${order.user?.name}`);
+    doc.text(`Email: ${order.user?.email}`);
+    doc.text(`Payment Method: ${order.paymentMethod}`);
+    doc.text(`Order Status: ${order.status}`);
+    doc.text(`Date: ${new Date(order.createdAt).toDateString()}`);
+
+    doc.moveDown();
+
+    // Address
+    doc.fontSize(14).text('Shipping Address');
+    doc.fontSize(12);
+    doc.text(order.address.name);
+    doc.text(order.address.phone);
+    doc.text(order.address.street);
+    doc.text(`${order.address.city}, ${order.address.state}`);
+    doc.text(`Pincode: ${order.address.pincode}`);
+
+    doc.moveDown();
+
+    // Items
+    doc.fontSize(14).text('Items');
+    doc.moveDown(0.5);
+
+    order.items.forEach((item, index) => {
+
+      doc.fontSize(12).text(
+        `${index + 1}. ${item.product?.title}`
+      );
+
+      doc.text(
+        `Quantity: ${item.quantity}   Price: ₹${item.price}`
+      );
+
+      doc.moveDown(0.5);
+
+    });
+
+    doc.moveDown();
+
+    doc.fontSize(16).text(`Total Amount: ₹${order.totalAmount}`);
+
+    doc.end();
+
+    fileStream.on('finish', () => {
+      console.log('Receipt saved:', filePath);
+    });
+
+  } catch (error) {
+
+    console.error('Receipt Error:', error);
+
+    res.status(500).json({
+      message: 'Failed to generate receipt'
+    });
+
+  }
+});
+
+
+
 router.get('/export', auth, async (req, res) => {
   try {
     const { status, startDate, endDate } = req.query;
@@ -278,12 +378,8 @@ router.get('/export/pdf/save', auth, async (req, res) => {
 
     let filter = {};
 
-    
-    if (status) {
-      filter.status = status;
-    }
+    if (status) filter.status = status;
 
-   
     if (startDate && endDate) {
       filter.createdAt = {
         $gte: new Date(startDate),
@@ -301,28 +397,23 @@ router.get('/export/pdf/save', auth, async (req, res) => {
 
     const fileName = `orders-${Date.now()}.pdf`;
 
-   
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${fileName}"`
-    );
+    const exportDir = path.join(__dirname, '../exports');
+    if (!fs.existsSync(exportDir)) {
+      fs.mkdirSync(exportDir, { recursive: true });
+    }
 
-    const doc = new PDFDocument({
-      margin: 40,
-      size: 'A4'
-    });
+    const filePath = path.join(exportDir, fileName);
 
-   
-    doc.pipe(res);
+    // ❌ REMOVED headers from here
 
-    doc
-      .fontSize(20)
-      .text('Order Report', { align: 'center' });
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const fileStream = fs.createWriteStream(filePath);
 
+    doc.pipe(fileStream); // only file, NOT res
+
+    doc.fontSize(20).text('Order Report', { align: 'center' });
     doc.moveDown();
 
-    
     orders.forEach((order, index) => {
       doc
         .fontSize(12)
@@ -337,8 +428,29 @@ router.get('/export/pdf/save', auth, async (req, res) => {
         .moveDown();
     });
 
-    
     doc.end();
+
+    fileStream.on('finish', () => {
+      console.log(`✅ PDF saved locally: ${filePath}`);
+
+      // ✅ Set headers ONLY here, after file is fully written
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      // ✅ Read saved file and send to browser
+      const readStream = fs.createReadStream(filePath);
+      readStream.pipe(res);
+
+      readStream.on('error', (err) => {
+        console.error('❌ Read stream error:', err);
+        res.status(500).json({ message: 'Failed to send PDF to browser' });
+      });
+    });
+
+    fileStream.on('error', (err) => {
+      console.error('❌ File save error:', err);
+      res.status(500).json({ message: 'Failed to save PDF' });
+    });
 
   } catch (error) {
     console.error('PDF Export Error:', error);
